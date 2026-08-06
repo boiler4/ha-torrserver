@@ -1,6 +1,7 @@
 name: Hassfest
 
 on:
+  workflow_dispatch:
   push:
   pull_request:
 
@@ -13,4 +14,3 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: home-assistant/actions/hassfest@master
-
