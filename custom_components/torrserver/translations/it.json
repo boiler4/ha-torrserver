@@ -1,0 +1,102 @@
+{
+  "title": "TorrServer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connetti TorrServer",
+        "description": "Inserisci l'indirizzo dell'istanza TorrServer. Le credenziali sono facoltative.",
+        "data": {
+          "url": "URL TorrServer",
+          "username": "Nome utente",
+          "password": "Password",
+          "verify_ssl": "Verifica certificato SSL"
+        }
+      },
+      "reconfigure": {
+        "title": "Riconfigura TorrServer",
+        "description": "Aggiorna le impostazioni di connessione. Lascia vuota la password per mantenere quella esistente.",
+        "data": {
+          "url": "URL TorrServer",
+          "username": "Nome utente",
+          "password": "Password",
+          "verify_ssl": "Verifica certificato SSL"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Autenticazione TorrServer",
+        "description": "Inserisci credenziali TorrServer valide.",
+        "data": {
+          "username": "Nome utente",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi a TorrServer. Controlla l'indirizzo e la rete.",
+      "invalid_auth": "TorrServer ha rifiutato le credenziali.",
+      "unknown": "Errore imprevisto durante la connessione a TorrServer."
+    },
+    "abort": {
+      "already_configured": "Questa istanza TorrServer è già configurata.",
+      "reauth_successful": "Autenticazione aggiornata correttamente.",
+      "reconfigure_successful": "Configurazione TorrServer aggiornata correttamente."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni TorrServer",
+        "description": "Scegli la frequenza di lettura e la velocità minima considerata come download attivo.",
+        "data": {
+          "scan_interval": "Intervallo di aggiornamento",
+          "download_threshold": "Soglia download attivo"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connected": {"name": "Connesso"},
+      "downloading": {"name": "Download in corso"},
+      "working": {"name": "In attività"}
+    },
+    "sensor": {
+      "download_speed": {"name": "Velocità download"},
+      "upload_speed": {"name": "Velocità upload"},
+      "total_torrents": {"name": "Torrent totali"},
+      "active_torrents": {"name": "Torrent attivi"},
+      "working_torrents": {"name": "Torrent in attività"},
+      "current_torrent": {"name": "Torrent corrente"},
+      "current_loaded_percent": {"name": "Torrent corrente caricato"},
+      "current_status": {"name": "Stato corrente"},
+      "added_torrents": {"name": "Torrent aggiunti"},
+      "getting_info_torrents": {"name": "Torrent in acquisizione informazioni"},
+      "preloading_torrents": {"name": "Torrent in precaricamento"},
+      "closed_torrents": {"name": "Torrent chiusi"},
+      "saved_torrents": {"name": "Torrent salvati"},
+      "loaded_size": {"name": "Dimensione caricata"},
+      "torrent_size": {"name": "Dimensione torrent"},
+      "preloaded_bytes": {"name": "Byte precaricati"},
+      "preload_size": {"name": "Dimensione precaricamento"},
+      "total_peers": {"name": "Peer totali"},
+      "pending_peers": {"name": "Peer in attesa"},
+      "active_peers": {"name": "Peer attivi"},
+      "connected_seeders": {"name": "Seeder connessi"},
+      "half_open_peers": {"name": "Peer semiaperti"},
+      "bytes_written": {"name": "Byte scritti"},
+      "bytes_written_data": {"name": "Byte dati scritti"},
+      "bytes_read": {"name": "Byte letti"},
+      "bytes_read_data": {"name": "Byte dati letti"},
+      "bytes_read_useful_data": {"name": "Byte utili letti"},
+      "chunks_written": {"name": "Chunk scritti"},
+      "chunks_read": {"name": "Chunk letti"},
+      "chunks_read_useful": {"name": "Chunk utili letti"},
+      "chunks_read_wasted": {"name": "Chunk sprecati"},
+      "pieces_dirtied_good": {"name": "Parti valide elaborate"},
+      "pieces_dirtied_bad": {"name": "Parti non valide elaborate"},
+      "duration_seconds": {"name": "Durata attività"},
+      "current_bit_rate": {"name": "Bitrate corrente"}
+    }
+  }
+}
+

@@ -1,0 +1,102 @@
+{
+  "title": "TorrServer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to TorrServer",
+        "description": "Enter the address of your TorrServer instance. Credentials are optional.",
+        "data": {
+          "url": "TorrServer URL",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigure TorrServer",
+        "description": "Update the connection settings. Leave the password empty to keep the existing password.",
+        "data": {
+          "url": "TorrServer URL",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Authenticate with TorrServer",
+        "description": "Enter valid TorrServer credentials.",
+        "data": {
+          "username": "Username",
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to TorrServer. Check the address and network access.",
+      "invalid_auth": "TorrServer rejected the credentials.",
+      "unknown": "Unexpected error while connecting to TorrServer."
+    },
+    "abort": {
+      "already_configured": "This TorrServer instance is already configured.",
+      "reauth_successful": "Authentication updated successfully.",
+      "reconfigure_successful": "TorrServer configuration updated successfully."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "TorrServer options",
+        "description": "Choose how frequently data is read and the minimum speed considered an active download.",
+        "data": {
+          "scan_interval": "Update interval",
+          "download_threshold": "Downloading threshold"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "connected": {"name": "Connected"},
+      "downloading": {"name": "Downloading"},
+      "working": {"name": "Working"}
+    },
+    "sensor": {
+      "download_speed": {"name": "Download speed"},
+      "upload_speed": {"name": "Upload speed"},
+      "total_torrents": {"name": "Total torrents"},
+      "active_torrents": {"name": "Active torrents"},
+      "working_torrents": {"name": "Working torrents"},
+      "current_torrent": {"name": "Current torrent"},
+      "current_loaded_percent": {"name": "Current torrent loaded"},
+      "current_status": {"name": "Current status"},
+      "added_torrents": {"name": "Added torrents"},
+      "getting_info_torrents": {"name": "Torrents getting info"},
+      "preloading_torrents": {"name": "Preloading torrents"},
+      "closed_torrents": {"name": "Closed torrents"},
+      "saved_torrents": {"name": "Saved torrents"},
+      "loaded_size": {"name": "Loaded size"},
+      "torrent_size": {"name": "Torrent size"},
+      "preloaded_bytes": {"name": "Preloaded bytes"},
+      "preload_size": {"name": "Preload size"},
+      "total_peers": {"name": "Total peers"},
+      "pending_peers": {"name": "Pending peers"},
+      "active_peers": {"name": "Active peers"},
+      "connected_seeders": {"name": "Connected seeders"},
+      "half_open_peers": {"name": "Half-open peers"},
+      "bytes_written": {"name": "Bytes written"},
+      "bytes_written_data": {"name": "Data bytes written"},
+      "bytes_read": {"name": "Bytes read"},
+      "bytes_read_data": {"name": "Data bytes read"},
+      "bytes_read_useful_data": {"name": "Useful data bytes read"},
+      "chunks_written": {"name": "Chunks written"},
+      "chunks_read": {"name": "Chunks read"},
+      "chunks_read_useful": {"name": "Useful chunks read"},
+      "chunks_read_wasted": {"name": "Wasted chunks read"},
+      "pieces_dirtied_good": {"name": "Good pieces dirtied"},
+      "pieces_dirtied_bad": {"name": "Bad pieces dirtied"},
+      "duration_seconds": {"name": "Active duration"},
+      "current_bit_rate": {"name": "Current bit rate"}
+    }
+  }
+}
+
