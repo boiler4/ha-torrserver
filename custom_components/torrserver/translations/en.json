@@ -46,10 +46,14 @@
     "step": {
       "init": {
         "title": "TorrServer options",
-        "description": "Choose how frequently data is read and the minimum speed considered an active download.",
+        "description": "Choose polling behavior and optional experimental features. Experimental ffprobe is disabled by default and never changes TorrServer settings or torrents.",
         "data": {
           "scan_interval": "Update interval",
-          "download_threshold": "Downloading threshold"
+          "download_threshold": "Downloading threshold",
+          "experimental_ffprobe": "Experimental: exact media bitrate analysis"
+        },
+        "data_description": {
+          "experimental_ffprobe": "Runs TorrServer's built-in ffprobe at most once per streamed file, with a timeout and in-memory result cache."
         }
       }
     }

@@ -36,7 +36,7 @@ def _bit_rate(torrent: Mapping[str, Any]) -> tuple[float, str]:
     """Return the best available bitrate and explain where it came from."""
     bit_rate = _as_float(torrent.get("bit_rate"))
     if bit_rate > 0:
-        return bit_rate, "torrserver"
+        return bit_rate, str(torrent.get("bit_rate_source") or "torrserver")
 
     torrent_size = _as_float(torrent.get("torrent_size"))
     duration_seconds = _as_float(torrent.get("duration_seconds"))

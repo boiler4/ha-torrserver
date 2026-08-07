@@ -27,10 +27,12 @@ from .api import (
 )
 from .const import (
     CONF_DOWNLOAD_THRESHOLD,
+    CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
     CONF_URL,
     CONF_VERIFY_SSL,
     DEFAULT_DOWNLOAD_THRESHOLD,
+    DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
@@ -244,6 +246,13 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                             unit_of_measurement="B/s",
                         )
                     ),
+                    vol.Required(
+                        CONF_EXPERIMENTAL_FFPROBE,
+                        default=options.get(
+                            CONF_EXPERIMENTAL_FFPROBE,
+                            DEFAULT_EXPERIMENTAL_FFPROBE,
+                        ),
+                    ): BooleanSelector(),
                 }
             ),
         )

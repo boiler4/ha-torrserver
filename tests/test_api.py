@@ -10,6 +10,8 @@ from custom_components.torrserver.api import (
     TorrServerApiClient,
     TorrServerAuthenticationError,
     TorrServerData,
+    _active_file_ids,
+    _probe_values,
     normalize_url,
 )
 
@@ -51,6 +53,27 @@ def test_normalize_url(source, expected):
 def test_normalize_url_rejects_invalid_input(source):
     with pytest.raises(ValueError):
         normalize_url(source)
+
+
+def test_active_file_ids_map_reader_piece_to_file():
+    torrent = {
+        "file_stats": [
+            {"id": 1, "length": 100_000_000},
+            {"id": 2, "length": 200_000_000},
+        ]
+    }
+    cache = {
+        "PiecesLength": 10_000_000,
+        "Readers": [{"Start": 10, "End": 20, "Reader": 15}],
+    }
+
+    assert _active_file_ids(torrent, cache) == (2,)
+
+
+def test_probe_values_extract_ffprobe_format():
+    assert _probe_values(
+        {"format": {"bit_rate": "24500000", "duration": "7200.5"}}
+    ) == (24_500_000, 7200.5)
 
 
 def test_data_model_selects_fastest_active_torrent():
@@ -172,6 +195,47 @@ async def test_client_enriches_torrent_with_reader_activity():
     assert data.torrents[0]["reader_count"] == 2
     assert data.torrents[0]["streaming_reader_count"] == 1
     assert session.request.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_experimental_ffprobe_runs_once_and_caches_result():
+    torrent = {
+        "title": "Example 4K",
+        "stat": 3,
+        "hash": "abc",
+        "download_speed": 2_000_000,
+        "preloaded_bytes": 128 * 1024 * 1024,
+        "file_stats": [{"id": 1, "length": 2_000_000_000}],
+    }
+    cache = {
+        "PiecesLength": 10_000_000,
+        "Readers": [{"Start": 10, "End": 20, "Reader": 15}],
+    }
+    session = MagicMock()
+    session.request.side_effect = [
+        FakeResponse(json_data=[torrent]),
+        FakeResponse(json_data=cache),
+        FakeResponse(
+            json_data={"format": {"bit_rate": "24000000", "duration": "7200"}}
+        ),
+        FakeResponse(text_data="<h6>TorrServer MatriX.137</h6>"),
+        FakeResponse(json_data=[torrent]),
+        FakeResponse(json_data=cache),
+    ]
+    client = TorrServerApiClient(
+        session, "http://torrserver:8090", experimental_ffprobe=True
+    )
+
+    first = await client.async_get_data()
+    second = await client.async_get_data()
+
+    assert first.torrents[0]["bit_rate"] == 24_000_000
+    assert first.torrents[0]["bit_rate_source"] == "ffprobe_experimental"
+    assert first.torrents[0]["ffprobe_status"] == "success"
+    assert second.torrents[0]["bit_rate"] == 24_000_000
+    assert second.torrents[0]["bit_rate_source"] == "ffprobe_experimental_cached"
+    assert second.torrents[0]["ffprobe_status"] == "cached"
+    assert session.request.call_count == 6
 
 
 @pytest.mark.asyncio

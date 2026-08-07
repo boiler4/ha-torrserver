@@ -46,10 +46,14 @@
     "step": {
       "init": {
         "title": "Opzioni TorrServer",
-        "description": "Scegli la frequenza di lettura e la velocità minima considerata come download attivo.",
+        "description": "Scegli il comportamento di aggiornamento e le funzioni sperimentali. ffprobe sperimentale è disattivato per impostazione predefinita e non cambia impostazioni o torrent in TorrServer.",
         "data": {
           "scan_interval": "Intervallo di aggiornamento",
-          "download_threshold": "Soglia download attivo"
+          "download_threshold": "Soglia download attivo",
+          "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
+        },
+        "data_description": {
+          "experimental_ffprobe": "Esegue ffprobe integrato in TorrServer al massimo una volta per file riprodotto, con timeout e cache del risultato in memoria."
         }
       }
     }

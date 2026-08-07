@@ -9,9 +9,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TorrServerApiClient
 from .const import (
+    CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
     CONF_URL,
     CONF_VERIFY_SSL,
+    DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_VERIFY_SSL,
 )
@@ -30,6 +32,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: TorrServerConfigEntry) -
         username=entry.data.get(CONF_USERNAME),
         password=entry.data.get(CONF_PASSWORD),
         verify_ssl=entry.data.get(CONF_VERIFY_SSL, DEFAULT_VERIFY_SSL),
+        experimental_ffprobe=bool(
+            entry.options.get(
+                CONF_EXPERIMENTAL_FFPROBE, DEFAULT_EXPERIMENTAL_FFPROBE
+            )
+        ),
     )
     coordinator = TorrServerDataUpdateCoordinator(
         hass,

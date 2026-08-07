@@ -15,6 +15,8 @@ from .const import ACTIVE_STATES
 _VERSION_PATTERN = re.compile(
     r"TorrServer\s+MatriX[.\s-]*([0-9][A-Za-z0-9._-]*)", re.IGNORECASE
 )
+_FFPROBE_MIN_PRELOADED_BYTES = 64 * 1024 * 1024
+_FFPROBE_TIMEOUT = 15.0
 
 
 class TorrServerApiError(Exception):
@@ -67,6 +69,67 @@ def _as_int(value: Any) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def _active_file_ids(
+    torrent: dict[str, Any], cache_state: dict[str, Any]
+) -> tuple[int, ...]:
+    """Map active cache-reader piece positions to TorrServer file IDs."""
+    piece_length = _as_int(cache_state.get("PiecesLength"))
+    readers = cache_state.get("Readers")
+    files = torrent.get("file_stats")
+    if (
+        piece_length <= 0
+        or not isinstance(readers, list)
+        or not isinstance(files, list)
+    ):
+        return ()
+
+    positions = {
+        _as_int(reader.get("Reader")) * piece_length
+        for reader in readers
+        if isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
+    }
+    if not positions:
+        return ()
+
+    intervals: list[tuple[int, int, int]] = []
+    offset = 0
+    for file_info in files:
+        if not isinstance(file_info, dict):
+            continue
+        length = _as_int(file_info.get("length"))
+        file_id = _as_int(file_info.get("id"))
+        if file_id > 0 and length > 0:
+            intervals.append((offset, offset + length, file_id))
+        offset += length
+
+    return tuple(
+        sorted(
+            {
+                file_id
+                for position in positions
+                for start, end, file_id in intervals
+                if start <= position < end
+            }
+        )
+    )
+
+
+def _probe_values(payload: dict[str, Any]) -> tuple[float, float] | None:
+    """Extract bitrate and duration from TorrServer's ffprobe response."""
+    format_data = payload.get("format") or payload.get("Format")
+    if not isinstance(format_data, dict):
+        return None
+    bit_rate = _as_float(format_data.get("bit_rate") or format_data.get("BitRate"))
+    duration = _as_float(
+        format_data.get("duration")
+        or format_data.get("duration_seconds")
+        or format_data.get("DurationSeconds")
+    )
+    if bit_rate <= 0:
+        return None
+    return bit_rate, duration
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +210,7 @@ class TorrServerApiClient:
         password: str | None = None,
         verify_ssl: bool = True,
         timeout: float = 10.0,
+        experimental_ffprobe: bool = False,
     ) -> None:
         """Initialize the client."""
         self._session = session
@@ -154,7 +218,10 @@ class TorrServerApiClient:
         self._auth = BasicAuth(username, password or "") if username else None
         self._ssl = None if verify_ssl else False
         self._timeout = timeout
+        self._experimental_ffprobe = experimental_ffprobe
         self._version: str | None = None
+        self._probe_cache: dict[tuple[str, int], tuple[float, float]] = {}
+        self._probe_attempted: set[tuple[str, int]] = set()
 
     async def async_get_torrents(self) -> tuple[dict[str, Any], ...]:
         """Return the list of torrent status objects."""
@@ -186,6 +253,19 @@ class TorrServerApiClient:
             raise TorrServerCannotConnect("Unexpected response from /cache")
         return payload
 
+    async def async_get_media_probe(
+        self, torrent_hash: str, file_id: int
+    ) -> dict[str, Any]:
+        """Run TorrServer's optional ffprobe endpoint."""
+        payload = await self._async_request_json(
+            "GET",
+            f"/ffp/{torrent_hash}/{file_id}",
+            request_timeout=_FFPROBE_TIMEOUT,
+        )
+        if not isinstance(payload, dict):
+            raise TorrServerCannotConnect("Unexpected response from /ffp")
+        return payload
+
     async def async_get_data(self) -> TorrServerData:
         """Fetch a complete read-only snapshot."""
         torrents = tuple(dict(torrent) for torrent in await self.async_get_torrents())
@@ -201,6 +281,7 @@ class TorrServerApiClient:
             ),
             return_exceptions=True,
         )
+        cache_states: dict[str, dict[str, Any]] = {}
         for torrent, cache_result in zip(cache_targets, cache_results, strict=True):
             if isinstance(cache_result, BaseException):
                 torrent["cache_stats_available"] = False
@@ -214,13 +295,78 @@ class TorrServerApiClient:
                 isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
                 for reader in readers
             )
+            cache_states[str(torrent["hash"])] = cache_result
+        if self._experimental_ffprobe:
+            await self._async_apply_experimental_probe(torrents, cache_states)
         version = await self.async_get_version()
         return TorrServerData(torrents=torrents, version=version)
 
-    async def _async_request_json(self, method: str, path: str, **kwargs: Any) -> Any:
+    async def _async_apply_experimental_probe(
+        self,
+        torrents: tuple[dict[str, Any], ...],
+        cache_states: dict[str, dict[str, Any]],
+    ) -> None:
+        """Apply cached metadata and attempt at most one new probe per poll."""
+        pending: tuple[dict[str, Any], str, int] | None = None
+        for torrent in sorted(
+            torrents,
+            key=lambda item: _as_float(item.get("download_speed")),
+            reverse=True,
+        ):
+            torrent_hash = str(torrent.get("hash") or "")
+            cache_state = cache_states.get(torrent_hash)
+            if not torrent_hash or cache_state is None:
+                continue
+            file_ids = _active_file_ids(torrent, cache_state)
+            if not file_ids:
+                continue
+            key = (torrent_hash, file_ids[0])
+            if key in self._probe_cache:
+                bit_rate, duration = self._probe_cache[key]
+                torrent["bit_rate"] = bit_rate
+                torrent["duration_seconds"] = duration
+                torrent["bit_rate_source"] = "ffprobe_experimental_cached"
+                torrent["ffprobe_status"] = "cached"
+                continue
+            if (
+                pending is None
+                and key not in self._probe_attempted
+                and _as_int(torrent.get("preloaded_bytes"))
+                >= _FFPROBE_MIN_PRELOADED_BYTES
+            ):
+                pending = (torrent, torrent_hash, file_ids[0])
+
+        if pending is None:
+            return
+        torrent, torrent_hash, file_id = pending
+        key = (torrent_hash, file_id)
+        self._probe_attempted.add(key)
+        torrent["ffprobe_status"] = "failed"
+        try:
+            payload = await self.async_get_media_probe(torrent_hash, file_id)
+        except TorrServerApiError:
+            return
+        values = _probe_values(payload)
+        if values is None:
+            return
+        self._probe_cache[key] = values
+        bit_rate, duration = values
+        torrent["bit_rate"] = bit_rate
+        torrent["duration_seconds"] = duration
+        torrent["bit_rate_source"] = "ffprobe_experimental"
+        torrent["ffprobe_status"] = "success"
+
+    async def _async_request_json(
+        self,
+        method: str,
+        path: str,
+        *,
+        request_timeout: float | None = None,
+        **kwargs: Any,
+    ) -> Any:
         """Request and decode JSON with consistent error handling."""
         try:
-            async with asyncio.timeout(self._timeout):
+            async with asyncio.timeout(request_timeout or self._timeout):
                 async with self._session.request(
                     method,
                     f"{self.base_url}{path}",
