@@ -45,16 +45,29 @@ def test_stream_health_is_unknown_while_torrent_is_starting():
     assert health.reason == "torrent_starting"
 
 
-def test_full_cache_is_protected_even_when_download_is_paused():
-    torrent = _stream(speed=0, buffer_seconds=90)
+def test_full_cache_occupancy_does_not_override_real_buffer():
+    torrent = _stream(speed=0, buffer_seconds=30)
     torrent["cache_full"] = True
-    torrent["average_download_speed"] = None
+    torrent["average_download_speed"] = 0
 
     health = evaluate_stream_health(torrent)
 
-    assert health.state == "protected"
-    assert health.reason == "cache_full"
-    assert health.attributes["buffer_mode"] == "full"
+    assert health.state == "stable"
+    assert health.reason == "buffer_sufficient"
+    assert health.attributes["buffer_mode"] == "measuring"
+
+
+def test_official_cache_without_piece_buffer_does_not_use_filled_fallback():
+    torrent = _stream(speed=0)
+    torrent["cache_stats_available"] = True
+    torrent["preloaded_bytes"] = 1_000_000_000
+    torrent["average_download_speed"] = 0
+
+    health = evaluate_stream_health(torrent)
+
+    assert health.state == "insufficient"
+    assert health.attributes["buffer_seconds"] is None
+    assert health.attributes["buffer_source"] == "unavailable"
 
 
 def test_large_reader_buffer_overrides_speed_below_nominal_bitrate():

@@ -77,7 +77,7 @@
     "sensor": {
       "stream_average_speed": {"name": "Velocità media streaming"},
       "stream_buffer_seconds": {"name": "Buffer riproducibile"},
-      "stream_buffer_mode": {"name": "Modalità buffer", "state": {"idle": "Inattiva", "full": "Cache piena", "preloading": "Precaricamento", "stable": "Stabile", "draining": "In diminuzione", "recovering": "In recupero", "measuring": "Misurazione", "unknown": "Sconosciuta", "multiple": "Modalità multiple"}},
+      "stream_buffer_mode": {"name": "Modalità buffer", "state": {"idle": "Inattiva", "full": "Buffer protetto", "preloading": "Precaricamento", "stable": "Stabile", "draining": "In diminuzione", "recovering": "In recupero", "measuring": "Misurazione", "unknown": "Sconosciuta", "multiple": "Modalità multiple"}},
       "download_speed": {"name": "Velocità download"}, "upload_speed": {"name": "Velocità upload"}, "total_torrents": {"name": "Torrent totali"}, "active_torrents": {"name": "Torrent attivi"}, "working_torrents": {"name": "Torrent in attività"},
       "stream_health": {"name": "Salute streaming", "state": {"idle": "Inattiva", "insufficient": "Non sufficiente", "stable": "Stabile", "protected": "Protetta", "measuring": "Misurazione", "unknown": "Sconosciuta"}},
       "current_torrent": {"name": "Torrent corrente"}, "current_loaded_percent": {"name": "Torrent corrente caricato"}, "current_status": {"name": "Stato corrente"}, "added_torrents": {"name": "Torrent aggiunti"}, "getting_info_torrents": {"name": "Torrent in acquisizione informazioni"}, "preloading_torrents": {"name": "Torrent in precaricamento"}, "closed_torrents": {"name": "Torrent chiusi"}, "saved_torrents": {"name": "Torrent salvati"},

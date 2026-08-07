@@ -11,6 +11,7 @@ from custom_components.torrserver.api import (
     TorrServerAuthenticationError,
     TorrServerData,
     _active_file_ids,
+    _contiguous_completed_buffer,
     _probe_values,
     normalize_url,
 )
@@ -68,6 +69,37 @@ def test_active_file_ids_map_reader_piece_to_file():
     }
 
     assert _active_file_ids(torrent, cache) == (2,)
+
+
+def test_contiguous_completed_buffer_stops_at_first_hole():
+    cache = {
+        "PiecesLength": 4_000_000,
+        "Pieces": {
+            "10": {"Id": 10, "Size": 4_000_000, "Completed": True},
+            "11": {"Id": 11, "Size": 4_000_000, "Completed": True},
+            "12": {"Id": 12, "Size": 4_000_000, "Completed": True},
+            "13": {"Id": 13, "Size": 2_000_000, "Completed": False},
+            "14": {"Id": 14, "Size": 4_000_000, "Completed": True},
+        },
+    }
+
+    assert _contiguous_completed_buffer(
+        cache, {"Start": 8, "Reader": 10, "End": 20}
+    ) == (8_000_000, 2)
+
+
+def test_contiguous_completed_buffer_is_zero_when_reader_piece_is_incomplete():
+    cache = {
+        "PiecesLength": 4_000_000,
+        "Pieces": {
+            "10": {"Id": 10, "Size": 2_000_000, "Completed": False},
+            "11": {"Id": 11, "Size": 4_000_000, "Completed": True},
+        },
+    }
+
+    assert _contiguous_completed_buffer(
+        cache, {"Start": 8, "Reader": 10, "End": 20}
+    ) == (0, 0)
 
 
 def test_probe_values_extract_ffprobe_format():
@@ -185,7 +217,16 @@ async def test_client_enriches_torrent_with_reader_activity():
                 "Readers": [
                     {"Start": 0, "End": 32, "Reader": 0},
                     {"Start": 100, "End": 200, "Reader": 120},
-                ]
+                ],
+                "Pieces": {
+                    "0": {"Id": 0, "Size": 4_000_000, "Completed": True},
+                    "1": {"Id": 1, "Size": 4_000_000, "Completed": True},
+                    "2": {"Id": 2, "Size": 4_000_000, "Completed": True},
+                    "120": {"Id": 120, "Size": 4_000_000, "Completed": True},
+                    "121": {"Id": 121, "Size": 4_000_000, "Completed": True},
+                    "122": {"Id": 122, "Size": 4_000_000, "Completed": True},
+                    "123": {"Id": 123, "Size": 4_000_000, "Completed": True},
+                },
             }
         ),
         FakeResponse(text_data="<h6>TorrServer MatriX.137</h6>"),
@@ -196,11 +237,15 @@ async def test_client_enriches_torrent_with_reader_activity():
 
     assert data.torrents[0]["cache_stats_available"] is True
     assert data.torrents[0]["reader_count"] == 2
-    assert data.torrents[0]["streaming_reader_count"] == 1
+    assert data.torrents[0]["streaming_reader_count"] == 2
     assert data.torrents[0]["cache_capacity_bytes"] == 1_000_000_000
     assert data.torrents[0]["cache_filled_bytes"] == 960_000_000
     assert data.torrents[0]["cache_fill_percent"] == 96
-    assert data.torrents[0]["buffer_ahead_bytes"] == 320_000_000
+    assert data.torrents[0]["buffer_ahead_bytes"] == 8_000_000
+    assert data.torrents[0]["buffer_contiguous_completed_pieces"] == 2
+    assert data.torrents[0]["buffer_measurement_source"] == (
+        "contiguous_completed_pieces"
+    )
     assert session.request.call_count == 3
 
 

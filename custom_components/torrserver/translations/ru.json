@@ -77,7 +77,7 @@
     "sensor": {
       "stream_average_speed": {"name": "Средняя скорость потока"},
       "stream_buffer_seconds": {"name": "Буфер воспроизведения"},
-      "stream_buffer_mode": {"name": "Режим буфера", "state": {"idle": "Неактивно", "full": "Кэш заполнен", "preloading": "Предзагрузка", "stable": "Стабильно", "draining": "Уменьшается", "recovering": "Восстановление", "measuring": "Измерение", "unknown": "Неизвестно", "multiple": "Несколько режимов"}},
+      "stream_buffer_mode": {"name": "Режим буфера", "state": {"idle": "Неактивно", "full": "Защищённый буфер", "preloading": "Предзагрузка", "stable": "Стабильно", "draining": "Уменьшается", "recovering": "Восстановление", "measuring": "Измерение", "unknown": "Неизвестно", "multiple": "Несколько режимов"}},
       "download_speed": {"name": "Скорость загрузки"}, "upload_speed": {"name": "Скорость отдачи"}, "total_torrents": {"name": "Всего торрентов"}, "active_torrents": {"name": "Активные торренты"}, "working_torrents": {"name": "Работающие торренты"},
       "stream_health": {"name": "Здоровье потока", "state": {"idle": "Неактивно", "insufficient": "Недостаточно", "stable": "Стабильно", "protected": "Защищено", "measuring": "Измерение", "unknown": "Неизвестно"}},
       "current_torrent": {"name": "Текущий торрент"}, "current_loaded_percent": {"name": "Загружено текущего торрента"}, "current_status": {"name": "Текущее состояние"}, "added_torrents": {"name": "Добавленные торренты"}, "getting_info_torrents": {"name": "Получение сведений"}, "preloading_torrents": {"name": "Предзагрузка"}, "closed_torrents": {"name": "Закрытые торренты"}, "saved_torrents": {"name": "Сохранённые торренты"},

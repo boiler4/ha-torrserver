@@ -95,7 +95,7 @@
     "sensor": {
       "stream_average_speed": {"name": "Average streaming speed"},
       "stream_buffer_seconds": {"name": "Playable buffer"},
-      "stream_buffer_mode": {"name": "Buffer mode", "state": {"idle": "Idle", "full": "Cache full", "preloading": "Preloading", "stable": "Stable", "draining": "Draining", "recovering": "Recovering", "measuring": "Measuring", "unknown": "Unknown", "multiple": "Multiple modes"}},
+      "stream_buffer_mode": {"name": "Buffer mode", "state": {"idle": "Idle", "full": "Protected buffer", "preloading": "Preloading", "stable": "Stable", "draining": "Draining", "recovering": "Recovering", "measuring": "Measuring", "unknown": "Unknown", "multiple": "Multiple modes"}},
       "download_speed": {"name": "Download speed"}, "upload_speed": {"name": "Upload speed"},
       "total_torrents": {"name": "Total torrents"}, "active_torrents": {"name": "Active torrents"}, "working_torrents": {"name": "Working torrents"},
       "stream_health": {"name": "Streaming health", "state": {"idle": "Idle", "insufficient": "Insufficient", "stable": "Stable", "protected": "Protected", "measuring": "Measuring", "unknown": "Unknown"}},

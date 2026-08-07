@@ -37,7 +37,6 @@ class StreamSpeedTracker:
 
     def __init__(self) -> None:
         self._samples: dict[str, deque[StreamSample]] = {}
-        self._last_active_average: dict[str, float] = {}
 
     def apply(
         self,
@@ -79,13 +78,11 @@ class StreamSpeedTracker:
                 _number(buffer_value) if buffer_value is not None else None
             )
 
-            # A zero while the target cache is full is an intentional TorrServer pause,
-            # not evidence that the swarm cannot sustain playback.
             samples.append(
                 StreamSample(
                     now,
                     speed,
-                    speed if speed > 0 or not cache_full else None,
+                    speed,
                     buffer_ahead,
                 )
             )
@@ -117,18 +114,7 @@ class StreamSpeedTracker:
                         - float(buffer_samples[0].buffer_ahead_bytes)
                     ) / elapsed
 
-            if speed == 0 and cache_full and key in self._last_active_average:
-                average = self._last_active_average[key]
-                source = "held_while_cache_full"
-            elif speed == 0 and cache_full and average is None:
-                source = "cache_full_no_history"
-            elif len(samples) < 2:
-                source = "measuring"
-            else:
-                source = "rolling_average"
-
-            if speed > 0 and average is not None:
-                self._last_active_average[key] = average
+            source = "measuring" if len(samples) < 2 else "rolling_average"
 
             torrent["instant_download_speed"] = speed
             torrent["average_download_speed"] = average
@@ -149,4 +135,3 @@ class StreamSpeedTracker:
 
         for stale_key in set(self._samples) - active_keys:
             self._samples.pop(stale_key, None)
-            self._last_active_average.pop(stale_key, None)

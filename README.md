@@ -10,7 +10,7 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-> `0.3.0-beta.2` is a test release. Keep it on the beta branch until the new
+> `0.3.0-beta.3` is a test release. Keep it on the beta branch until the new
 > discovery and streaming-health logic has been validated.
 
 ## Highlights
@@ -63,11 +63,12 @@ multiple simultaneous streams, the entity reports the worst active state and
 its attributes include a count for every state.
 
 The primary signal is playable data ahead of TorrServer's active reader. It is
-calculated from the official `/cache` reader positions and converted to seconds
-using the detected media bitrate:
+calculated from consecutive `/cache` `Pieces` marked `Completed`, stopping at
+the first missing piece, and converted to seconds using the detected media
+bitrate. The current reader piece is excluded because TorrServer does not expose
+the byte offset inside that piece:
 
-- **Protected**: at least 60 playable seconds, a full cache, or a completely
-  loaded file.
+- **Protected**: at least 60 playable seconds or a completely loaded file.
 - **Stable**: at least 15 playable seconds, or a low buffer whose download can
   sustain and recover playback.
 - **Insufficient**: fewer than 15 playable seconds while speed and buffer trend
@@ -76,8 +77,9 @@ using the detected media bitrate:
   being collected.
 
 The buffer mode is exposed separately as `full`, `preloading`, `stable`,
-`draining`, `recovering`, or `unknown`. This keeps a full cache Protected even
-when TorrServer intentionally slows or pauses its download.
+`draining`, `recovering`, or `unknown`. `full` means that the consecutive
+playable buffer reached the Protected threshold; TorrServer cache occupancy is
+diagnostic only and never makes a stream Protected by itself.
 
 Defaults are 15 seconds for low buffer, 60 seconds for Protected, 0% sustainable
 speed margin, 10% preloading margin, a 15-second average, and a 15-second
@@ -86,8 +88,8 @@ five seconds or no usable sources are applied immediately.
 
 This is an explainable estimate, not a player guarantee. Attributes expose
 playable seconds, buffer mode and trend, instantaneous/average Mbps, bitrate,
-thresholds, cache fill, samples, peers, seeders, reason, pending transition,
-and bitrate source.
+thresholds, cache occupancy, consecutive completed pieces, samples, peers,
+seeders, reason, pending transition, and bitrate source.
 
 ## Native traffic-light dashboard
 

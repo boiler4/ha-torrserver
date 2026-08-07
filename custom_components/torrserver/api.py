@@ -71,24 +71,95 @@ def _as_int(value: Any) -> int:
         return 0
 
 
+def _cache_readers(cache_state: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+    """Return valid reader windows, including a reader at the file start."""
+    readers = cache_state.get("Readers")
+    if not isinstance(readers, list):
+        return ()
+    return tuple(
+        reader
+        for reader in readers
+        if isinstance(reader, dict)
+        and "Reader" in reader
+        and _as_int(reader.get("Reader")) >= 0
+        and _as_int(reader.get("End")) > _as_int(reader.get("Start"))
+    )
+
+
+def _piece_states(cache_state: dict[str, Any]) -> dict[int, dict[str, Any]] | None:
+    """Normalize TorrServer's cached-piece map without inventing missing data."""
+    pieces = cache_state.get("Pieces")
+    if not isinstance(pieces, dict):
+        return None
+
+    normalized: dict[int, dict[str, Any]] = {}
+    for key, value in pieces.items():
+        if not isinstance(value, dict):
+            continue
+        raw_id = value.get("Id", value.get("id", key))
+        try:
+            piece_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if piece_id >= 0:
+            normalized[piece_id] = value
+    return normalized
+
+
+def _contiguous_completed_buffer(
+    cache_state: dict[str, Any], reader: dict[str, Any]
+) -> tuple[int, int] | None:
+    """Return conservative bytes/pieces completed contiguously after a reader.
+
+    TorrServer's Reader/End values describe the configured cache window, not
+    downloaded data. The Pieces map is the authoritative source. The current
+    piece is deliberately excluded because /cache exposes only its piece index,
+    not the reader's byte offset inside that piece.
+    """
+    pieces = _piece_states(cache_state)
+    if pieces is None:
+        return None
+
+    reader_piece = _as_int(reader.get("Reader"))
+    end_piece = _as_int(reader.get("End"))
+    if reader_piece < 0 or end_piece <= reader_piece:
+        return (0, 0)
+
+    current = pieces.get(reader_piece)
+    if not current or not bool(current.get("Completed", current.get("completed"))):
+        return (0, 0)
+
+    default_length = _as_int(cache_state.get("PiecesLength"))
+    completed_bytes = 0
+    completed_pieces = 0
+    for piece_id in range(reader_piece + 1, end_piece):
+        piece = pieces.get(piece_id)
+        if not piece or not bool(piece.get("Completed", piece.get("completed"))):
+            break
+        size = _as_int(piece.get("Size", piece.get("size")))
+        length = _as_int(piece.get("Length", piece.get("length")))
+        piece_bytes = size or length or default_length
+        if length > 0 and piece_bytes > length:
+            piece_bytes = length
+        completed_bytes += max(piece_bytes, 0)
+        completed_pieces += 1
+
+    return completed_bytes, completed_pieces
+
+
 def _active_file_ids(
     torrent: dict[str, Any], cache_state: dict[str, Any]
 ) -> tuple[int, ...]:
     """Map active cache-reader piece positions to TorrServer file IDs."""
     piece_length = _as_int(cache_state.get("PiecesLength"))
-    readers = cache_state.get("Readers")
+    readers = _cache_readers(cache_state)
     files = torrent.get("file_stats")
-    if (
-        piece_length <= 0
-        or not isinstance(readers, list)
-        or not isinstance(files, list)
-    ):
+    if piece_length <= 0 or not readers or not isinstance(files, list):
         return ()
 
     positions = {
         _as_int(reader.get("Reader")) * piece_length
         for reader in readers
-        if isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
     }
     if not positions:
         return ()
@@ -295,28 +366,28 @@ class TorrServerApiClient:
                 readers = []
             torrent["cache_stats_available"] = True
             torrent["reader_count"] = len(readers)
-            active_readers = [
-                reader
-                for reader in readers
-                if isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
-            ]
+            active_readers = list(_cache_readers(cache_result))
             torrent["streaming_reader_count"] = len(active_readers)
             capacity = _as_int(cache_result.get("Capacity"))
             filled = _as_int(cache_result.get("Filled"))
-            piece_length = _as_int(cache_result.get("PiecesLength"))
             torrent["cache_capacity_bytes"] = capacity
             torrent["cache_filled_bytes"] = filled
             torrent["cache_fill_percent"] = (
                 min(filled / capacity * 100, 100.0) if capacity > 0 else None
             )
-            ahead_values = [
-                max(_as_int(reader.get("End")) - _as_int(reader.get("Reader")), 0)
-                * piece_length
+            contiguous = [
+                measured
                 for reader in active_readers
-                if piece_length > 0
+                if (measured := _contiguous_completed_buffer(cache_result, reader))
+                is not None
             ]
-            torrent["buffer_ahead_bytes"] = (
-                min(ahead_values) if ahead_values else None
+            smallest = min(contiguous, key=lambda item: item[0]) if contiguous else None
+            torrent["buffer_ahead_bytes"] = smallest[0] if smallest else None
+            torrent["buffer_contiguous_completed_pieces"] = (
+                smallest[1] if smallest else None
+            )
+            torrent["buffer_measurement_source"] = (
+                "contiguous_completed_pieces" if smallest else "unavailable"
             )
             cache_states[str(torrent["hash"])] = cache_result
         if self._experimental_ffprobe:

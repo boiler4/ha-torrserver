@@ -201,8 +201,11 @@ def evaluate_stream_health(
     reader_buffer_value = torrent.get("buffer_ahead_bytes")
     if reader_buffer_value is not None:
         buffer_ahead_bytes = _as_float(reader_buffer_value)
-        buffer_source = "reader_ahead"
-    elif preloaded_bytes > 0:
+        buffer_source = str(
+            torrent.get("buffer_measurement_source")
+            or "contiguous_completed_pieces"
+        )
+    elif torrent.get("cache_stats_available") is not True and preloaded_bytes > 0:
         buffer_ahead_bytes = float(preloaded_bytes)
         buffer_source = "preloaded_fallback"
     else:
@@ -226,9 +229,7 @@ def evaluate_stream_health(
     )
     cache_full = bool(torrent.get("cache_full"))
 
-    if cache_full:
-        buffer_mode = "full"
-    elif buffer_seconds is None:
+    if buffer_seconds is None:
         buffer_mode = "unknown"
     elif trend_ratio is None:
         buffer_mode = "measuring"
@@ -236,6 +237,8 @@ def evaluate_stream_health(
         buffer_mode = "preloading"
     elif trend_ratio < -BUFFER_TREND_TOLERANCE_RATIO:
         buffer_mode = "draining"
+    elif buffer_seconds >= protected_buffer_seconds:
+        buffer_mode = "full"
     elif buffer_seconds < low_buffer_seconds and speed_ratio >= stable_ratio:
         buffer_mode = "recovering"
     else:
@@ -251,9 +254,6 @@ def evaluate_stream_health(
     if fully_loaded:
         state = "protected"
         reason = "fully_loaded"
-    elif cache_full:
-        state = "protected"
-        reason = "cache_full"
     elif buffer_seconds is not None and buffer_seconds >= protected_buffer_seconds:
         state = "protected"
         reason = "protected_buffer"
@@ -355,6 +355,9 @@ def evaluate_stream_health(
         "cache_fill_percent": torrent.get("cache_fill_percent"),
         "cache_full": cache_full,
         "cache_full_threshold": torrent.get("cache_full_threshold"),
+        "buffer_contiguous_completed_pieces": torrent.get(
+            "buffer_contiguous_completed_pieces"
+        ),
         "loaded_percent": round(loaded_percent, 1),
         "bit_rate_mbps": round(bit_rate_bps / 1_000_000, 2),
         "bit_rate_source": bit_rate_source,

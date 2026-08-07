@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0-beta.3
+
+- Calculate playable buffer only from consecutive `/cache` pieces marked
+  `Completed`, stopping at the first missing piece.
+- Exclude the current reader piece for a conservative estimate because
+  TorrServer does not expose its internal byte offset.
+- Treat cache fill as diagnostic occupancy instead of proof that playback data
+  is available contiguously.
+- Keep zero-speed samples visible even when cache occupancy is high.
+- Detect active readers positioned at the beginning of a file.
+
 ## 0.3.0-beta.2
 
 - Base streaming health on playable seconds ahead of TorrServer's active reader.

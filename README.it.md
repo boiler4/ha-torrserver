@@ -6,7 +6,7 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-> `0.3.0-beta.2` è una versione di test e rimane sulla branch beta fino alla
+> `0.3.0-beta.3` è una versione di test e rimane sulla branch beta fino alla
 > conclusione delle verifiche.
 
 ## Funzioni principali
@@ -52,22 +52,27 @@ torrent soltanto in seed non peggiora lo stato. Con più riproduzioni viene
 mostrato lo stato peggiore e gli attributi riportano i conteggi separati.
 
 Il segnale principale sono i secondi realmente disponibili davanti al lettore,
-calcolati dalle posizioni ufficiali `/cache` e dal bitrate:
+calcolati contando i `Pieces` consecutivi marcati `Completed` da `/cache` fino
+al primo buco e convertendoli con il bitrate. Il pezzo corrente viene escluso
+perché TorrServer non espone l'offset esatto del lettore al suo interno:
 
-- **Protetta** con almeno 60 secondi, cache piena o file completo;
+- **Protetta** con almeno 60 secondi consecutivi o file completo;
 - **Stabile** con almeno 15 secondi oppure buffer basso che riesce a recuperare;
 - **Non sufficiente** sotto 15 secondi quando velocità e andamento del buffer
   non riescono a sostenere la riproduzione;
 - **Misurazione** quando mancano ancora dati sufficienti.
 
 La modalità buffer è separata: `full`, `preloading`, `stable`, `draining`,
-`recovering` o `unknown`. Le impostazioni predefinite sono 15/60 secondi, margini
+`recovering` o `unknown`. `full` indica che il buffer consecutivo ha raggiunto
+la soglia Protetta; l'occupazione della cache è solo diagnostica e non rende più
+lo stato Protetto da sola. Le impostazioni predefinite sono 15/60 secondi, margini
 velocità 0%/10%, media 15 secondi e ritardo di peggioramento 15 secondi. Tutti
 questi valori sono modificabili. Sotto 5 secondi o senza sorgenti utilizzabili
 lo stato peggiora immediatamente.
 
 Negli attributi trovi secondi, modalità e andamento buffer, velocità in Mbps,
-bitrate, soglie, cache, campioni, peer, seed, motivazione e transizione pendente.
+bitrate, soglie, occupazione cache, pezzi consecutivi completati, campioni, peer,
+seed, motivazione e transizione pendente.
 
 ## Semaforo nativo
 
