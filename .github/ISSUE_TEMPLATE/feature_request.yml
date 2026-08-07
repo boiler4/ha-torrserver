@@ -1,0 +1,38 @@
+name: Feature request
+description: Suggest an improvement to the Home Assistant integration
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: language
+    attributes:
+      label: Preferred language
+      options: [English, Italiano, Русский]
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use case
+      description: Explain the problem or dashboard/automation need.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and requests.
+          required: true
+        - label: The request can remain read-only toward TorrServer.
+          required: true

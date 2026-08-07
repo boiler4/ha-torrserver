@@ -1,0 +1,37 @@
+name: Support question
+description: Ask how to configure or use the Home Assistant integration
+title: "[Support]: "
+labels: ["question"]
+body:
+  - type: dropdown
+    id: language
+    attributes:
+      label: Preferred language
+      options: [English, Italiano, Русский]
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What have you already tried?
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Integration, Home Assistant, and TorrServer versions
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy
+      options:
+        - label: I removed credentials and private torrent information.
+          required: true

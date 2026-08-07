@@ -37,12 +37,12 @@ def test_strong_swarm_and_preload_cannot_override_insufficient_speed():
         }
     )
 
-    assert health.state == "red"
-    assert health.reason == "below_yellow_margin"
+    assert health.state == "critical"
+    assert health.reason == "below_warning_margin"
     assert health.attributes["bit_rate_source"] == "fallback_8_mbps"
 
 
-def test_stream_health_is_green_when_download_exceeds_stream_rate():
+def test_stream_health_is_healthy_when_download_exceeds_stream_rate():
     health = evaluate_stream_health(
         {
             "stat": 3,
@@ -52,12 +52,12 @@ def test_stream_health_is_green_when_download_exceeds_stream_rate():
         }
     )
 
-    assert health.state == "green"
-    assert health.reason == "above_green_margin"
+    assert health.state == "healthy"
+    assert health.reason == "above_healthy_margin"
     assert health.attributes["speed_ratio"] == 1.6
 
 
-def test_stream_health_is_yellow_between_configured_margins():
+def test_stream_health_is_warning_between_configured_margins():
     health = evaluate_stream_health(
         {
             "stat": 3,
@@ -68,23 +68,21 @@ def test_stream_health_is_yellow_between_configured_margins():
         }
     )
 
-    assert health.state == "yellow"
-    assert health.reason == "above_yellow_margin"
+    assert health.state == "warning"
+    assert health.reason == "above_warning_margin"
 
 
-def test_stream_health_is_red_without_sources_or_preload():
+def test_stream_health_is_critical_without_sources_or_preload():
     health = evaluate_stream_health({"stat": 3})
 
-    assert health.state == "red"
+    assert health.state == "critical"
     assert health.reason == "no_sources"
 
 
 def test_cached_data_cannot_override_missing_sources():
-    health = evaluate_stream_health(
-        {"stat": 3, "preloaded_bytes": 200_000_000}
-    )
+    health = evaluate_stream_health({"stat": 3, "preloaded_bytes": 200_000_000})
 
-    assert health.state == "red"
+    assert health.state == "critical"
     assert health.reason == "no_sources"
 
 
@@ -103,7 +101,7 @@ def test_stream_health_uses_torrserver_bit_rate_when_available():
     assert health.attributes["download_speed_mbps"] == 17.6
     assert health.attributes["required_download_speed_mbps"] == 16.0
     assert health.attributes["speed_ratio"] == 1.1
-    assert health.state == "yellow"
+    assert health.state == "warning"
     assert health.attributes["minimum_yellow_speed_mbps"] == 17.6
     assert health.attributes["minimum_green_speed_mbps"] == 24.0
 
@@ -128,13 +126,13 @@ def test_stream_health_respects_custom_speed_margins():
         green_margin_percent=20,
     )
 
-    assert yellow.state == "yellow"
-    assert green.state == "green"
+    assert yellow.state == "warning"
+    assert green.state == "healthy"
     assert yellow.attributes["yellow_margin_percent"] == 5
     assert yellow.attributes["green_margin_percent"] == 20
 
 
-def test_completely_loaded_file_is_green_without_download_speed():
+def test_completely_loaded_file_is_healthy_without_download_speed():
     health = evaluate_stream_health(
         {
             "stat": 3,
@@ -143,7 +141,7 @@ def test_completely_loaded_file_is_green_without_download_speed():
         }
     )
 
-    assert health.state == "green"
+    assert health.state == "healthy"
     assert health.reason == "fully_loaded"
 
 
@@ -160,7 +158,7 @@ def test_stream_health_estimates_large_4k_movie_conservatively():
         }
     )
 
-    assert health.state == "red"
+    assert health.state == "critical"
     assert health.attributes["bit_rate_mbps"] == 40.0
     assert health.attributes["bit_rate_source"] == "auto_4k_large"
     assert health.attributes["speed_ratio"] == 0.17
@@ -220,21 +218,22 @@ def test_multiple_streams_report_the_worst_state_and_counts():
         )
     )
 
-    assert health.state == "red"
+    assert health.state == "critical"
     assert health.attributes == {
         "estimated": True,
         "reason": "no_sources",
         "stream_count": 3,
-        "green_streams": 1,
-        "yellow_streams": 1,
-        "red_streams": 1,
+        "healthy_streams": 1,
+        "warning_streams": 1,
+        "critical_streams": 1,
+        "measuring_streams": 0,
         "unknown_streams": 0,
         "worst_score": 0,
         "worst_reason": "no_sources",
     }
 
 
-def test_multiple_green_streams_remain_green():
+def test_multiple_healthy_streams_remain_healthy():
     health = evaluate_streams_health(
         (
             {
@@ -252,12 +251,12 @@ def test_multiple_green_streams_remain_green():
         )
     )
 
-    assert health.state == "green"
-    assert health.attributes["green_streams"] == 2
+    assert health.state == "healthy"
+    assert health.attributes["healthy_streams"] == 2
     assert health.attributes["stream_count"] == 2
 
 
-def test_starting_stream_does_not_hide_a_yellow_stream():
+def test_starting_stream_does_not_hide_a_warning_stream():
     health = evaluate_streams_health(
         (
             {"stat": 1},
@@ -271,9 +270,9 @@ def test_starting_stream_does_not_hide_a_yellow_stream():
         )
     )
 
-    assert health.state == "yellow"
+    assert health.state == "warning"
     assert health.attributes["unknown_streams"] == 1
-    assert health.attributes["yellow_streams"] == 1
+    assert health.attributes["warning_streams"] == 1
 
 
 def test_no_active_streams_returns_idle_with_zero_counts():
@@ -281,11 +280,61 @@ def test_no_active_streams_returns_idle_with_zero_counts():
 
     assert health.state == "idle"
     assert health.attributes["stream_count"] == 0
-    assert health.attributes["red_streams"] == 0
+    assert health.attributes["critical_streams"] == 0
 
 
 def test_stream_health_icons_are_state_aware():
-    assert stream_health_icon("red") == "mdi:alert-circle"
-    assert stream_health_icon("yellow") == "mdi:alert"
-    assert stream_health_icon("green") == "mdi:check-circle"
+    assert stream_health_icon("critical") == "mdi:alert-circle"
+    assert stream_health_icon("warning") == "mdi:alert"
+    assert stream_health_icon("healthy") == "mdi:check-circle"
+    assert stream_health_icon("measuring") == "mdi:timer-sand"
     assert stream_health_icon("unexpected") == "mdi:traffic-light"
+
+
+def test_stream_health_reports_measuring_during_average_warmup():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "connected_seeders": 2,
+            "download_speed": 2_000_000,
+            "average_download_speed": 2_000_000,
+            "average_speed_source": "measuring",
+            "speed_sample_count": 1,
+        }
+    )
+
+    assert health.state == "measuring"
+    assert health.reason == "collecting_speed_samples"
+    assert health.score is None
+
+
+def test_cache_full_uses_held_average_even_when_instant_speed_is_zero():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "download_speed": 0,
+            "instant_download_speed": 0,
+            "average_download_speed": 2_000_000,
+            "average_speed_source": "held_while_cache_full",
+            "cache_full": True,
+        }
+    )
+
+    assert health.state == "healthy"
+    assert health.attributes["instant_download_speed_mbps"] == 0
+    assert health.attributes["average_download_speed_mbps"] == 16
+    assert health.attributes["speed_source"] == "held_while_cache_full"
+
+
+def test_full_cache_without_history_is_warning_instead_of_critical():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "download_speed": 0,
+            "average_speed_source": "cache_full_no_history",
+            "cache_full": True,
+        }
+    )
+
+    assert health.state == "warning"
+    assert health.reason == "cache_full_without_speed_history"

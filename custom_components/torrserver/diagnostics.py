@@ -9,11 +9,12 @@ from homeassistant.core import HomeAssistant
 
 from . import TorrServerConfigEntry
 
-_REDACT_CONFIG = {"password", "username"}
+_REDACT_CONFIG = {"password", "url", "username"}
 _REDACT_TORRENT = {
     "data",
     "file_stats",
     "hash",
+    "link",
     "name",
     "path",
     "poster",
@@ -34,6 +35,7 @@ async def async_get_config_entry_diagnostics(
         "entry": async_redact_data(dict(entry.data), _REDACT_CONFIG),
         "options": dict(entry.options),
         "server_version": data.version,
+        "ffprobe_status": data.ffprobe_status,
         "last_update_success": entry.runtime_data.last_update_success,
         "torrent_count": len(data.torrents),
         "active_torrent_count": len(data.active_torrents),

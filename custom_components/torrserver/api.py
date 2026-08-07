@@ -138,6 +138,7 @@ class TorrServerData:
 
     torrents: tuple[dict[str, Any], ...]
     version: str | None = None
+    ffprobe_status: str = "disabled"
 
     @property
     def active_torrents(self) -> tuple[dict[str, Any], ...]:
@@ -219,6 +220,9 @@ class TorrServerApiClient:
         self._ssl = None if verify_ssl else False
         self._timeout = timeout
         self._experimental_ffprobe = experimental_ffprobe
+        self._ffprobe_status = (
+            "waiting_for_stream" if experimental_ffprobe else "disabled"
+        )
         self._version: str | None = None
         self._probe_cache: dict[tuple[str, int], tuple[float, float]] = {}
         self._probe_attempted: set[tuple[str, int]] = set()
@@ -299,7 +303,11 @@ class TorrServerApiClient:
         if self._experimental_ffprobe:
             await self._async_apply_experimental_probe(torrents, cache_states)
         version = await self.async_get_version()
-        return TorrServerData(torrents=torrents, version=version)
+        return TorrServerData(
+            torrents=torrents,
+            version=version,
+            ffprobe_status=self._ffprobe_status,
+        )
 
     async def _async_apply_experimental_probe(
         self,
@@ -327,6 +335,7 @@ class TorrServerApiClient:
                 torrent["duration_seconds"] = duration
                 torrent["bit_rate_source"] = "ffprobe_experimental_cached"
                 torrent["ffprobe_status"] = "cached"
+                self._ffprobe_status = "available"
                 continue
             if (
                 pending is None
@@ -345,9 +354,11 @@ class TorrServerApiClient:
         try:
             payload = await self.async_get_media_probe(torrent_hash, file_id)
         except TorrServerApiError:
+            self._ffprobe_status = "unavailable"
             return
         values = _probe_values(payload)
         if values is None:
+            self._ffprobe_status = "unavailable"
             return
         self._probe_cache[key] = values
         bit_rate, duration = values
@@ -355,6 +366,7 @@ class TorrServerApiClient:
         torrent["duration_seconds"] = duration
         torrent["bit_rate_source"] = "ffprobe_experimental"
         torrent["ffprobe_status"] = "success"
+        self._ffprobe_status = "available"
 
     async def _async_request_json(
         self,

@@ -1,0 +1,85 @@
+{
+  "title": "TorrServer",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Добавить TorrServer",
+        "description": "Найдите сервер в локальной сети (рекомендуется) или введите его адрес вручную.",
+        "menu_options": {"discover": "Найти автоматически", "manual": "Ввести адрес вручную"}
+      },
+      "manual": {
+        "title": "Подключение вручную",
+        "description": "Введите адрес TorrServer. Учётные данные необязательны. Не передавайте их по обычному HTTP в недоверенной сети.",
+        "data": {"url": "URL TorrServer", "username": "Имя пользователя", "password": "Пароль", "verify_ssl": "Проверять сертификат SSL"},
+        "data_description": {"verify_ssl": "Отключайте только для доверенного сервера с самоподписанным сертификатом HTTPS."}
+      },
+      "discover": {
+        "title": "Поиск в локальной сети",
+        "description": "Однократный поиск по запросу в активных локальных сетях IPv4. По умолчанию проверяются только HTTP 8090 и HTTPS 8091. Учётные данные при поиске не отправляются.",
+        "data": {"discovery_port": "Другой порт поиска (необязательно)"},
+        "data_description": {"discovery_port": "Оставьте пустым для 8090/HTTP и 8091/HTTPS. При указанном значении проверяется только этот порт по HTTP и HTTPS."}
+      },
+      "discovery_select": {
+        "title": "Выберите TorrServer",
+        "description": "Найдено несколько серверов-кандидатов. Выберите сервер для настройки.",
+        "data": {"discovery_result": "Найденный сервер"}
+      },
+      "discovery_confirm": {
+        "title": "Подтвердите TorrServer",
+        "description": "Подтвердите {url}. Если сервер защищён, введите данные сейчас: они будут отправлены только на выбранный адрес.",
+        "data": {"url": "URL TorrServer", "username": "Имя пользователя", "password": "Пароль", "verify_ssl": "Проверять сертификат SSL"},
+        "data_description": {"verify_ssl": "Отключайте только для доверенного сервера с самоподписанным сертификатом HTTPS."}
+      },
+      "reconfigure": {
+        "title": "Перенастроить TorrServer",
+        "description": "Измените параметры подключения. Оставьте пароль пустым, чтобы сохранить текущий.",
+        "data": {"url": "URL TorrServer", "username": "Имя пользователя", "password": "Пароль", "verify_ssl": "Проверять сертификат SSL"}
+      },
+      "reauth_confirm": {
+        "title": "Авторизация TorrServer", "description": "Введите действительные учётные данные TorrServer.",
+        "data": {"username": "Имя пользователя", "password": "Пароль"}
+      }
+    },
+    "error": {
+      "cannot_connect": "Не удалось подключиться к TorrServer. Проверьте адрес и доступ к сети.",
+      "invalid_auth": "TorrServer отклонил учётные данные.",
+      "no_servers_found": "TorrServer не найден. Повторите поиск с другим портом или настройте вручную.",
+      "unknown": "Непредвиденная ошибка подключения к TorrServer."
+    },
+    "abort": {"already_configured": "Этот TorrServer уже настроен.", "reauth_successful": "Авторизация успешно обновлена.", "reconfigure_successful": "Настройка TorrServer успешно обновлена."}
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Параметры TorrServer",
+        "description": "Настройте опрос и оценку здоровья потока. Экспериментальный анализ битрейта работает только на чтение и не изменяет настройки или торренты.",
+        "data": {
+          "scan_interval": "Интервал обновления", "stream_average_window": "Окно средней скорости", "download_threshold_mbps": "Порог активной загрузки",
+          "stream_yellow_margin": "Минимальный запас для предупреждения", "stream_green_margin": "Минимальный запас для хорошего состояния", "experimental_ffprobe": "Экспериментально: точный анализ битрейта файла"
+        },
+        "data_description": {
+          "scan_interval": "Как часто Home Assistant читает TorrServer. Короткий интервал быстрее обновляет данные, но создаёт больше локальных запросов.",
+          "stream_average_window": "Количество секунд для скользящей средней скорости загрузки. Не меньше интервала обновления. Рекомендуется: 15 секунд.",
+          "download_threshold_mbps": "Минимальная скорость TorrServer в Mbps для отдельного бинарного датчика активной загрузки.",
+          "stream_yellow_margin": "Средняя скорость должна превышать битрейт на этот процент, чтобы состояние стало предупреждающим, а не критическим. Рекомендуется: 10%.",
+          "stream_green_margin": "Средняя скорость должна превышать битрейт на этот процент для хорошего состояния. Значение должно быть выше предупреждающего запаса. Рекомендуется: 50%.",
+          "experimental_ffprobe": "Использует endpoint /ffp TorrServer один раз для каждого воспроизводимого файла и хранит результат в памяти. Исполняемый файл ffprobe должен быть доступен TorrServer; иначе применяется оценка."
+        }
+      }
+    },
+    "error": {"green_margin_too_low": "Запас хорошего состояния должен быть выше предупреждающего.", "average_window_too_short": "Окно средней скорости должно быть не короче интервала обновления."}
+  },
+  "entity": {
+    "binary_sensor": {"connected": {"name": "Подключено"}, "downloading": {"name": "Загрузка"}, "working": {"name": "Работает"}},
+    "sensor": {
+      "stream_average_speed": {"name": "Средняя скорость потока"},
+      "download_speed": {"name": "Скорость загрузки"}, "upload_speed": {"name": "Скорость отдачи"}, "total_torrents": {"name": "Всего торрентов"}, "active_torrents": {"name": "Активные торренты"}, "working_torrents": {"name": "Работающие торренты"},
+      "stream_health": {"name": "Здоровье потока", "state": {"idle": "Неактивно", "critical": "Критическое", "warning": "Предупреждение", "healthy": "Хорошее", "measuring": "Измерение", "unknown": "Неизвестно"}},
+      "current_torrent": {"name": "Текущий торрент"}, "current_loaded_percent": {"name": "Загружено текущего торрента"}, "current_status": {"name": "Текущее состояние"}, "added_torrents": {"name": "Добавленные торренты"}, "getting_info_torrents": {"name": "Получение сведений"}, "preloading_torrents": {"name": "Предзагрузка"}, "closed_torrents": {"name": "Закрытые торренты"}, "saved_torrents": {"name": "Сохранённые торренты"},
+      "loaded_size": {"name": "Загруженный объём"}, "torrent_size": {"name": "Размер торрента"}, "preloaded_bytes": {"name": "Предзагруженные байты"}, "preload_size": {"name": "Размер предзагрузки"}, "total_peers": {"name": "Всего пиров"}, "pending_peers": {"name": "Ожидающие пиры"}, "active_peers": {"name": "Активные пиры"}, "connected_seeders": {"name": "Подключённые сиды"}, "half_open_peers": {"name": "Полуоткрытые пиры"},
+      "bytes_written": {"name": "Записано байт"}, "bytes_written_data": {"name": "Записано байт данных"}, "bytes_read": {"name": "Прочитано байт"}, "bytes_read_data": {"name": "Прочитано байт данных"}, "bytes_read_useful_data": {"name": "Прочитано полезных байт"}, "chunks_written": {"name": "Записано блоков"}, "chunks_read": {"name": "Прочитано блоков"}, "chunks_read_useful": {"name": "Полезные блоки"}, "chunks_read_wasted": {"name": "Потерянные блоки"}, "pieces_dirtied_good": {"name": "Хорошие изменённые части"}, "pieces_dirtied_bad": {"name": "Плохие изменённые части"}, "duration_seconds": {"name": "Продолжительность активности"}, "current_bit_rate": {"name": "Текущий битрейт"}
+    }
+  },
+  "issues": {"ffprobe_unavailable": {"title": "Экспериментальный анализ битрейта недоступен", "description": "Экспериментальный анализ включён, но TorrServer по адресу {url} не может запустить ffprobe. Установите/предоставьте ffprobe для TorrServer либо отключите экспериментальную функцию. Статистика потока продолжит использовать консервативную оценку."}},
+  "system_health": {"info": {"configured_instances": "Настроенные экземпляры", "connected_instances": "Подключённые экземпляры", "server_versions": "Версии сервера", "ffprobe_status": "Состояние ffprobe"}}
+}

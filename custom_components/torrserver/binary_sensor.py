@@ -13,7 +13,9 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import TorrServerConfigEntry
 from .const import (
     CONF_DOWNLOAD_THRESHOLD,
+    CONF_DOWNLOAD_THRESHOLD_MBPS,
     DEFAULT_DOWNLOAD_THRESHOLD,
+    DEFAULT_DOWNLOAD_THRESHOLD_MBPS,
     TORRENT_WORKING,
 )
 from .entity import TorrServerEntity
@@ -89,9 +91,24 @@ class TorrServerDownloadingBinarySensor(TorrServerBinarySensor):
     @property
     def is_on(self) -> bool:
         """Return whether aggregate download speed exceeds the threshold."""
-        threshold = float(
-            self._entry.options.get(CONF_DOWNLOAD_THRESHOLD, DEFAULT_DOWNLOAD_THRESHOLD)
-        )
+        if CONF_DOWNLOAD_THRESHOLD_MBPS in self._entry.options:
+            threshold = (
+                float(
+                    self._entry.options.get(
+                        CONF_DOWNLOAD_THRESHOLD_MBPS,
+                        DEFAULT_DOWNLOAD_THRESHOLD_MBPS,
+                    )
+                )
+                * 1_000_000
+                / 8
+            )
+        else:
+            # Compatibility with beta entries that stored this value in B/s.
+            threshold = float(
+                self._entry.options.get(
+                    CONF_DOWNLOAD_THRESHOLD, DEFAULT_DOWNLOAD_THRESHOLD
+                )
+            )
         return self.coordinator.data.active_sum("download_speed") > threshold
 
 

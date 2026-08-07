@@ -3,37 +3,48 @@
   "config": {
     "step": {
       "user": {
-        "title": "Connect to TorrServer",
-        "description": "Enter the address of your TorrServer instance. Credentials are optional.",
-        "data": {
-          "url": "TorrServer URL",
-          "username": "Username",
-          "password": "Password",
-          "verify_ssl": "Verify SSL certificate"
-        }
+        "title": "Add TorrServer",
+        "description": "Search the local network (recommended) or enter the server address manually.",
+        "menu_options": {"discover": "Search automatically", "manual": "Enter address manually"}
+      },
+      "manual": {
+        "title": "Connect manually",
+        "description": "Enter the TorrServer address. Credentials are optional. Avoid sending credentials over plain HTTP on an untrusted network.",
+        "data": {"url": "TorrServer URL", "username": "Username", "password": "Password", "verify_ssl": "Verify SSL certificate"},
+        "data_description": {"verify_ssl": "Disable only for a trusted server with a self-signed HTTPS certificate."}
+      },
+      "discover": {
+        "title": "Search the local network",
+        "description": "One on-demand scan of enabled local IPv4 networks. By default only HTTP 8090 and HTTPS 8091 are checked. No credentials are sent during discovery.",
+        "data": {"discovery_port": "Custom search port (optional)"},
+        "data_description": {"discovery_port": "Leave empty for ports 8090/HTTP and 8091/HTTPS. A custom value checks only that port over HTTP and HTTPS."}
+      },
+      "discovery_select": {
+        "title": "Select TorrServer",
+        "description": "More than one candidate was found. Select the server to configure.",
+        "data": {"discovery_result": "Discovered server"}
+      },
+      "discovery_confirm": {
+        "title": "Confirm TorrServer",
+        "description": "Confirm {url}. If it is protected, enter credentials now; they are sent only to this selected address.",
+        "data": {"url": "TorrServer URL", "username": "Username", "password": "Password", "verify_ssl": "Verify SSL certificate"},
+        "data_description": {"verify_ssl": "Disable only for a trusted server with a self-signed HTTPS certificate."}
       },
       "reconfigure": {
         "title": "Reconfigure TorrServer",
         "description": "Update the connection settings. Leave the password empty to keep the existing password.",
-        "data": {
-          "url": "TorrServer URL",
-          "username": "Username",
-          "password": "Password",
-          "verify_ssl": "Verify SSL certificate"
-        }
+        "data": {"url": "TorrServer URL", "username": "Username", "password": "Password", "verify_ssl": "Verify SSL certificate"}
       },
       "reauth_confirm": {
         "title": "Authenticate with TorrServer",
         "description": "Enter valid TorrServer credentials.",
-        "data": {
-          "username": "Username",
-          "password": "Password"
-        }
+        "data": {"username": "Username", "password": "Password"}
       }
     },
     "error": {
       "cannot_connect": "Unable to connect to TorrServer. Check the address and network access.",
       "invalid_auth": "TorrServer rejected the credentials.",
+      "no_servers_found": "No TorrServer was found. Retry with a custom port or use manual configuration.",
       "unknown": "Unexpected error while connecting to TorrServer."
     },
     "abort": {
@@ -46,77 +57,53 @@
     "step": {
       "init": {
         "title": "TorrServer options",
-        "description": "Configure polling, streaming-quality speed margins, and optional experimental features. ffprobe never changes TorrServer settings or torrents.",
+        "description": "Configure polling and the streaming-health estimate. The experimental bitrate analysis is read-only and never changes TorrServer settings or torrents.",
         "data": {
           "scan_interval": "Update interval",
-          "download_threshold": "Downloading threshold",
-          "stream_yellow_margin": "Minimum margin for yellow",
-          "stream_green_margin": "Minimum margin for green",
+          "stream_average_window": "Speed average window",
+          "download_threshold_mbps": "Downloading threshold",
+          "stream_yellow_margin": "Minimum margin for warning",
+          "stream_green_margin": "Minimum margin for healthy",
           "experimental_ffprobe": "Experimental: exact media bitrate analysis"
         },
         "data_description": {
-          "stream_yellow_margin": "How far download speed must exceed the media bit rate to avoid red. Recommended: 10%.",
-          "stream_green_margin": "How far download speed must exceed the media bit rate to become green. Must be greater than the yellow margin. Recommended: 50%.",
-          "experimental_ffprobe": "Runs TorrServer's built-in ffprobe at most once per streamed file, with a timeout and in-memory result cache."
+          "scan_interval": "How often Home Assistant reads TorrServer. Shorter intervals provide faster updates but make more local requests.",
+          "stream_average_window": "Seconds used for the rolling download-speed average. Must be at least the update interval. Recommended: 15 seconds.",
+          "download_threshold_mbps": "Minimum TorrServer speed in Mbps used by the separate Downloading binary sensor.",
+          "stream_yellow_margin": "The average speed must exceed the media bitrate by this percentage to reach Warning instead of Critical. Recommended: 10%.",
+          "stream_green_margin": "The average speed must exceed the media bitrate by this percentage to be Healthy. It must be greater than the warning margin. Recommended: 50%.",
+          "experimental_ffprobe": "Uses TorrServer's /ffp endpoint once per streamed file and caches the result in memory. The ffprobe executable must be available to TorrServer; otherwise the integration uses an estimate."
         }
       }
     },
     "error": {
-      "green_margin_too_low": "The green margin must be greater than the yellow margin."
+      "green_margin_too_low": "The healthy margin must be greater than the warning margin.",
+      "average_window_too_short": "The average window must be at least as long as the update interval."
     }
   },
   "entity": {
     "binary_sensor": {
-      "connected": {"name": "Connected"},
-      "downloading": {"name": "Downloading"},
-      "working": {"name": "Working"}
+      "connected": {"name": "Connected"}, "downloading": {"name": "Downloading"}, "working": {"name": "Working"}
     },
     "sensor": {
-      "download_speed": {"name": "Download speed"},
-      "upload_speed": {"name": "Upload speed"},
-      "total_torrents": {"name": "Total torrents"},
-      "active_torrents": {"name": "Active torrents"},
-      "working_torrents": {"name": "Working torrents"},
-      "stream_health": {
-        "name": "Streaming quality",
-        "state": {
-          "idle": "Idle",
-          "red": "Red",
-          "yellow": "Yellow",
-          "green": "Green",
-          "unknown": "Unknown"
-        }
-      },
-      "current_torrent": {"name": "Current torrent"},
-      "current_loaded_percent": {"name": "Current torrent loaded"},
-      "current_status": {"name": "Current status"},
-      "added_torrents": {"name": "Added torrents"},
-      "getting_info_torrents": {"name": "Torrents getting info"},
-      "preloading_torrents": {"name": "Preloading torrents"},
-      "closed_torrents": {"name": "Closed torrents"},
-      "saved_torrents": {"name": "Saved torrents"},
-      "loaded_size": {"name": "Loaded size"},
-      "torrent_size": {"name": "Torrent size"},
-      "preloaded_bytes": {"name": "Preloaded bytes"},
-      "preload_size": {"name": "Preload size"},
-      "total_peers": {"name": "Total peers"},
-      "pending_peers": {"name": "Pending peers"},
-      "active_peers": {"name": "Active peers"},
-      "connected_seeders": {"name": "Connected seeders"},
-      "half_open_peers": {"name": "Half-open peers"},
-      "bytes_written": {"name": "Bytes written"},
-      "bytes_written_data": {"name": "Data bytes written"},
-      "bytes_read": {"name": "Bytes read"},
-      "bytes_read_data": {"name": "Data bytes read"},
-      "bytes_read_useful_data": {"name": "Useful data bytes read"},
-      "chunks_written": {"name": "Chunks written"},
-      "chunks_read": {"name": "Chunks read"},
-      "chunks_read_useful": {"name": "Useful chunks read"},
-      "chunks_read_wasted": {"name": "Wasted chunks read"},
-      "pieces_dirtied_good": {"name": "Good pieces dirtied"},
-      "pieces_dirtied_bad": {"name": "Bad pieces dirtied"},
-      "duration_seconds": {"name": "Active duration"},
-      "current_bit_rate": {"name": "Current bit rate"}
+      "stream_average_speed": {"name": "Average streaming speed"},
+      "download_speed": {"name": "Download speed"}, "upload_speed": {"name": "Upload speed"},
+      "total_torrents": {"name": "Total torrents"}, "active_torrents": {"name": "Active torrents"}, "working_torrents": {"name": "Working torrents"},
+      "stream_health": {"name": "Streaming health", "state": {"idle": "Idle", "critical": "Critical", "warning": "Warning", "healthy": "Healthy", "measuring": "Measuring", "unknown": "Unknown"}},
+      "current_torrent": {"name": "Current torrent"}, "current_loaded_percent": {"name": "Current torrent loaded"}, "current_status": {"name": "Current status"},
+      "added_torrents": {"name": "Added torrents"}, "getting_info_torrents": {"name": "Torrents getting info"}, "preloading_torrents": {"name": "Preloading torrents"}, "closed_torrents": {"name": "Closed torrents"}, "saved_torrents": {"name": "Saved torrents"},
+      "loaded_size": {"name": "Loaded size"}, "torrent_size": {"name": "Torrent size"}, "preloaded_bytes": {"name": "Preloaded bytes"}, "preload_size": {"name": "Preload size"},
+      "total_peers": {"name": "Total peers"}, "pending_peers": {"name": "Pending peers"}, "active_peers": {"name": "Active peers"}, "connected_seeders": {"name": "Connected seeders"}, "half_open_peers": {"name": "Half-open peers"},
+      "bytes_written": {"name": "Bytes written"}, "bytes_written_data": {"name": "Data bytes written"}, "bytes_read": {"name": "Bytes read"}, "bytes_read_data": {"name": "Data bytes read"}, "bytes_read_useful_data": {"name": "Useful data bytes read"},
+      "chunks_written": {"name": "Chunks written"}, "chunks_read": {"name": "Chunks read"}, "chunks_read_useful": {"name": "Useful chunks read"}, "chunks_read_wasted": {"name": "Wasted chunks read"},
+      "pieces_dirtied_good": {"name": "Good pieces dirtied"}, "pieces_dirtied_bad": {"name": "Bad pieces dirtied"}, "duration_seconds": {"name": "Active duration"}, "current_bit_rate": {"name": "Current bitrate"}
     }
-  }
+  },
+  "issues": {
+    "ffprobe_unavailable": {
+      "title": "Experimental bitrate analysis is unavailable",
+      "description": "The experimental analysis was enabled, but TorrServer at {url} could not run ffprobe. Install/provide the ffprobe executable to TorrServer or disable the experimental option. Streaming statistics continue using a conservative estimate."
+    }
+  },
+  "system_health": {"info": {"configured_instances": "Configured instances", "connected_instances": "Connected instances", "server_versions": "Server versions", "ffprobe_status": "ffprobe status"}}
 }

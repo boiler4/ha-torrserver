@@ -8,15 +8,29 @@ from dataclasses import dataclass
 from typing import Any, Final
 
 DEFAULT_BIT_RATE_BPS: Final = 8_000_000
-STREAM_HEALTH_OPTIONS: Final = ["idle", "red", "yellow", "green", "unknown"]
+STREAM_HEALTH_OPTIONS: Final = [
+    "idle",
+    "critical",
+    "warning",
+    "healthy",
+    "measuring",
+    "unknown",
+]
 STREAM_HEALTH_ICONS: Final = {
     "idle": "mdi:minus-circle-outline",
-    "red": "mdi:alert-circle",
-    "yellow": "mdi:alert",
-    "green": "mdi:check-circle",
+    "critical": "mdi:alert-circle",
+    "warning": "mdi:alert",
+    "healthy": "mdi:check-circle",
+    "measuring": "mdi:timer-sand",
     "unknown": "mdi:help-circle-outline",
 }
-_STATE_PRIORITY: Final = {"green": 0, "unknown": 1, "yellow": 2, "red": 3}
+_STATE_PRIORITY: Final = {
+    "healthy": 0,
+    "unknown": 1,
+    "measuring": 1,
+    "warning": 2,
+    "critical": 3,
+}
 
 
 def _as_float(value: Any) -> float:
@@ -109,7 +123,22 @@ def evaluate_stream_health(
     seeders = _as_int(torrent.get("connected_seeders"))
     active_peers = _as_int(torrent.get("active_peers"))
     total_peers = _as_int(torrent.get("total_peers"))
-    download_speed = _as_float(torrent.get("download_speed"))
+    instant_download_speed = _as_float(
+        torrent.get("instant_download_speed", torrent.get("download_speed"))
+    )
+    average_value = torrent.get("average_download_speed")
+    average_download_speed = (
+        _as_float(average_value) if average_value is not None else None
+    )
+    download_speed = (
+        average_download_speed
+        if average_download_speed is not None
+        else instant_download_speed
+    )
+    speed_source = str(
+        torrent.get("average_speed_source")
+        or ("instantaneous" if average_download_speed is None else "rolling_average")
+    )
     preloaded_bytes = _as_int(torrent.get("preloaded_bytes"))
     loaded_bytes = _as_int(torrent.get("loaded_size"))
     torrent_size = _as_int(torrent.get("torrent_size"))
@@ -130,25 +159,35 @@ def evaluate_stream_health(
     minimum_green_speed = required_speed * green_ratio
     fully_loaded = torrent_size > 0 and loaded_bytes >= torrent_size
     has_sources = seeders > 0 or active_peers > 0 or download_speed >= 1024
+    cache_full = bool(torrent.get("cache_full"))
+    measuring = speed_source == "measuring"
     if fully_loaded:
-        state = "green"
+        state = "healthy"
         reason = "fully_loaded"
         score = 100
-    elif not has_sources:
-        state = "red"
+    elif cache_full and speed_source == "cache_full_no_history":
+        state = "warning"
+        reason = "cache_full_without_speed_history"
+        score = None
+    elif measuring:
+        state = "measuring"
+        reason = "collecting_speed_samples"
+        score = None
+    elif not has_sources and not cache_full:
+        state = "critical"
         reason = "no_sources"
         score = 0
     elif download_speed >= minimum_green_speed:
-        state = "green"
-        reason = "above_green_margin"
+        state = "healthy"
+        reason = "above_healthy_margin"
         score = 100
     elif download_speed >= minimum_yellow_speed:
-        state = "yellow"
-        reason = "above_yellow_margin"
+        state = "warning"
+        reason = "above_warning_margin"
         score = min(round(speed_ratio / green_ratio * 100), 99)
     else:
-        state = "red"
-        reason = "below_yellow_margin"
+        state = "critical"
+        reason = "below_warning_margin"
         score = min(round(speed_ratio / green_ratio * 100), 99)
 
     return StreamHealth(
@@ -164,18 +203,34 @@ def evaluate_stream_health(
             "active_peers": active_peers,
             "total_peers": total_peers,
             "download_speed_mbps": round(download_speed * 8 / 1_000_000, 2),
+            "instant_download_speed_mbps": round(
+                instant_download_speed * 8 / 1_000_000, 2
+            ),
+            "average_download_speed_mbps": (
+                round(average_download_speed * 8 / 1_000_000, 2)
+                if average_download_speed is not None
+                else None
+            ),
+            "speed_source": speed_source,
+            "average_window_seconds": torrent.get("average_window_seconds"),
+            "speed_sample_count": torrent.get("speed_sample_count"),
             "required_download_speed_mbps": round(bit_rate_bps / 1_000_000, 2),
-            "minimum_yellow_speed_mbps": round(
+            "minimum_yellow_speed_mbps": round(minimum_yellow_speed * 8 / 1_000_000, 2),
+            "minimum_green_speed_mbps": round(minimum_green_speed * 8 / 1_000_000, 2),
+            "minimum_warning_speed_mbps": round(
                 minimum_yellow_speed * 8 / 1_000_000, 2
             ),
-            "minimum_green_speed_mbps": round(
-                minimum_green_speed * 8 / 1_000_000, 2
-            ),
+            "minimum_healthy_speed_mbps": round(minimum_green_speed * 8 / 1_000_000, 2),
             "speed_ratio": round(speed_ratio, 2),
             "speed_margin_percent": round((speed_ratio - 1) * 100, 1),
             "yellow_margin_percent": yellow_margin_percent,
             "green_margin_percent": green_margin_percent,
+            "warning_margin_percent": yellow_margin_percent,
+            "healthy_margin_percent": green_margin_percent,
             "preloaded_bytes": preloaded_bytes,
+            "cache_fill_percent": torrent.get("cache_fill_percent"),
+            "cache_full": cache_full,
+            "cache_full_threshold": torrent.get("cache_full_threshold"),
             "estimated_preload_seconds": round(estimated_preload_seconds, 1),
             "loaded_percent": round(loaded_percent, 1),
             "bit_rate_mbps": round(bit_rate_bps / 1_000_000, 2),
@@ -207,9 +262,10 @@ def evaluate_streams_health(
                 "estimated": True,
                 "reason": "no_active_torrent",
                 "stream_count": 0,
-                "green_streams": 0,
-                "yellow_streams": 0,
-                "red_streams": 0,
+                "healthy_streams": 0,
+                "warning_streams": 0,
+                "critical_streams": 0,
+                "measuring_streams": 0,
                 "unknown_streams": 0,
             },
         )
@@ -222,9 +278,10 @@ def evaluate_streams_health(
         "estimated": True,
         "reason": worst.reason,
         "stream_count": len(assessments),
-        "green_streams": counts["green"],
-        "yellow_streams": counts["yellow"],
-        "red_streams": counts["red"],
+        "healthy_streams": counts["healthy"],
+        "warning_streams": counts["warning"],
+        "critical_streams": counts["critical"],
+        "measuring_streams": counts["measuring"],
         "unknown_streams": counts["unknown"],
         "worst_score": min(scored) if scored else None,
         "worst_reason": worst.reason,

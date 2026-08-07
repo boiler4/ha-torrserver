@@ -5,9 +5,10 @@
         "default": "mdi:traffic-light",
         "state": {
           "idle": "mdi:minus-circle-outline",
-          "red": "mdi:alert-circle",
-          "yellow": "mdi:alert",
-          "green": "mdi:check-circle",
+          "critical": "mdi:alert-circle",
+          "warning": "mdi:alert",
+          "healthy": "mdi:check-circle",
+          "measuring": "mdi:timer-sand",
           "unknown": "mdi:help-circle-outline"
         }
       }

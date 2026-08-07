@@ -80,6 +80,18 @@ def _current_value(data: TorrServerData, key: str) -> SensorValue:
     return current.get(key) if current else None
 
 
+def _stream_average_speed(data: TorrServerData) -> float:
+    """Return the sum of cache-aware average speeds for active streams."""
+    return sum(
+        float(
+            torrent.get("average_download_speed")
+            if torrent.get("average_download_speed") is not None
+            else torrent.get("download_speed") or 0
+        )
+        for torrent in data.streaming_torrents
+    )
+
+
 def _current_loaded_percent(data: TorrServerData) -> float | None:
     current = data.current_torrent
     if not current:
@@ -179,6 +191,14 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         value_fn=lambda data: _bytes_per_second_to_mbps(
             data.active_sum("upload_speed")
         ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_average_speed",
+        translation_key="stream_average_speed",
+        icon="mdi:chart-timeline-variant",
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: _bytes_per_second_to_mbps(_stream_average_speed(data)),
     ),
     TorrServerSensorEntityDescription(
         key="total_torrents",

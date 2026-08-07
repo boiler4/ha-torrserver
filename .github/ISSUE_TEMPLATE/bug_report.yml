@@ -1,0 +1,79 @@
+name: Bug report
+description: Report a reproducible problem in the Home Assistant integration
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you. Download Diagnostics from the TorrServer integration menu in Home Assistant, review the redacted JSON, and attach it below. Never post passwords.
+  - type: dropdown
+    id: language
+    attributes:
+      label: Preferred language
+      options: [English, Italiano, Русский]
+    validations:
+      required: true
+  - type: input
+    id: integration_version
+    attributes:
+      label: Integration version
+      placeholder: 0.3.0-beta.1
+    validations:
+      required: true
+  - type: input
+    id: home_assistant_version
+    attributes:
+      label: Home Assistant version
+      placeholder: 2026.x.x
+    validations:
+      required: true
+  - type: input
+    id: torrserver_version
+    attributes:
+      label: TorrServer version
+      placeholder: MatriX.x
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the visible problem and when it started.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Start playback…\n2. Open…\n3. Observe…"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics file
+      description: Drag the redacted Home Assistant diagnostics JSON here. This upload is manual.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Remove addresses, names, hashes, credentials, and other private data.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I removed credentials and private torrent information.
+          required: true
+        - label: This issue concerns ha-torrserver, not TorrServer itself.
+          required: true

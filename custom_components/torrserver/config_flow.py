@@ -6,6 +6,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components import network
 from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -14,6 +15,10 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -26,26 +31,38 @@ from .api import (
     normalize_url,
 )
 from .const import (
-    CONF_DOWNLOAD_THRESHOLD,
+    CONF_DOWNLOAD_THRESHOLD_MBPS,
     CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
+    CONF_STREAM_AVERAGE_WINDOW,
     CONF_STREAM_GREEN_MARGIN,
     CONF_STREAM_YELLOW_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
-    DEFAULT_DOWNLOAD_THRESHOLD,
+    DEFAULT_DOWNLOAD_THRESHOLD_MBPS,
     DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_STREAM_AVERAGE_WINDOW,
     DEFAULT_STREAM_GREEN_MARGIN,
     DEFAULT_STREAM_YELLOW_MARGIN,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
+    MAX_STREAM_AVERAGE_WINDOW,
     MAX_STREAM_MARGIN,
     MIN_SCAN_INTERVAL,
+    MIN_STREAM_AVERAGE_WINDOW,
     MIN_STREAM_MARGIN,
 )
+from .discovery import (
+    DiscoveredTorrServer,
+    async_discover_torrservers,
+    candidate_urls_from_adapters,
+)
+
+CONF_DISCOVERY_PORT = "discovery_port"
+CONF_DISCOVERY_RESULT = "discovery_result"
 
 
 def _user_schema(defaults: dict[str, Any]) -> vol.Schema:
@@ -96,11 +113,21 @@ class TorrServerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a TorrServer config flow."""
 
     VERSION = 1
+    _discovered: dict[str, DiscoveredTorrServer]
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Set up TorrServer through the UI."""
+        """Offer safe automatic discovery or manual configuration."""
+        return self.async_show_menu(
+            step_id="user",
+            menu_options=["discover", "manual"],
+        )
+
+    async def async_step_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Set up TorrServer using a manually entered URL."""
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
@@ -119,9 +146,120 @@ class TorrServerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="manual",
             data_schema=_user_schema(user_input or {}),
             errors=errors,
+        )
+
+    async def async_step_discover(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Discover TorrServer instances on enabled local IPv4 networks."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            custom_port_value = user_input.get(CONF_DISCOVERY_PORT)
+            custom_port = int(custom_port_value) if custom_port_value else None
+            adapters = await network.async_get_adapters(self.hass)
+            urls = candidate_urls_from_adapters(adapters, custom_port=custom_port)
+            results = await async_discover_torrservers(
+                async_get_clientsession(self.hass), urls
+            )
+            if results:
+                self._discovered = {result.url: result for result in results}
+                if len(results) == 1:
+                    return await self._async_discovery_confirmation(results[0])
+                return await self.async_step_discovery_select()
+            errors["base"] = "no_servers_found"
+
+        return self.async_show_form(
+            step_id="discover",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(CONF_DISCOVERY_PORT): NumberSelector(
+                        NumberSelectorConfig(
+                            min=1,
+                            max=65535,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                        )
+                    )
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_discovery_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Let the user select one of multiple discovered instances."""
+        if user_input is not None:
+            candidate = self._discovered[str(user_input[CONF_DISCOVERY_RESULT])]
+            return await self._async_discovery_confirmation(candidate)
+
+        options = [
+            SelectOptionDict(
+                value=item.url,
+                label=(
+                    f"🔒 {item.url}"
+                    if item.auth_required
+                    else f"{item.url} — {item.version or 'TorrServer'}"
+                ),
+            )
+            for item in self._discovered.values()
+        ]
+        return self.async_show_form(
+            step_id="discovery_select",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_DISCOVERY_RESULT): SelectSelector(
+                        SelectSelectorConfig(
+                            options=options,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    )
+                }
+            ),
+        )
+
+    async def _async_discovery_confirmation(
+        self, candidate: DiscoveredTorrServer
+    ) -> ConfigFlowResult:
+        """Open the selected candidate; credentials are used only from here."""
+        self.context["torrserver_discovery_url"] = candidate.url
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Confirm a discovered URL and optionally authenticate it."""
+        url = str(self.context["torrserver_discovery_url"])
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                result = await _validate_input(self.hass, user_input)
+            except TorrServerAuthenticationError:
+                errors["base"] = "invalid_auth"
+            except (TorrServerCannotConnect, ValueError):
+                errors["base"] = "cannot_connect"
+            except Exception:  # noqa: BLE001
+                errors["base"] = "unknown"
+            else:
+                await self.async_set_unique_id(result["data"][CONF_URL])
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(
+                    title=result["title"], data=result["data"]
+                )
+
+        defaults = user_input or {
+            CONF_URL: url,
+            CONF_VERIFY_SSL: True,
+            CONF_USERNAME: "",
+        }
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            data_schema=_user_schema(defaults),
+            errors=errors,
+            description_placeholders={"url": url},
         )
 
     async def async_step_reconfigure(
@@ -222,8 +360,12 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             yellow_margin = float(user_input[CONF_STREAM_YELLOW_MARGIN])
             green_margin = float(user_input[CONF_STREAM_GREEN_MARGIN])
+            average_window = float(user_input[CONF_STREAM_AVERAGE_WINDOW])
+            scan_interval = float(user_input[CONF_SCAN_INTERVAL])
             if green_margin <= yellow_margin:
                 errors[CONF_STREAM_GREEN_MARGIN] = "green_margin_too_low"
+            elif average_window < scan_interval:
+                errors[CONF_STREAM_AVERAGE_WINDOW] = "average_window_too_short"
             else:
                 return self.async_create_entry(title="", data=user_input)
 
@@ -246,17 +388,36 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                         )
                     ),
                     vol.Required(
-                        CONF_DOWNLOAD_THRESHOLD,
+                        CONF_STREAM_AVERAGE_WINDOW,
                         default=defaults.get(
-                            CONF_DOWNLOAD_THRESHOLD, DEFAULT_DOWNLOAD_THRESHOLD
+                            CONF_STREAM_AVERAGE_WINDOW,
+                            max(
+                                DEFAULT_STREAM_AVERAGE_WINDOW,
+                                defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                            ),
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_AVERAGE_WINDOW,
+                            max=MAX_STREAM_AVERAGE_WINDOW,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_DOWNLOAD_THRESHOLD_MBPS,
+                        default=defaults.get(
+                            CONF_DOWNLOAD_THRESHOLD_MBPS,
+                            DEFAULT_DOWNLOAD_THRESHOLD_MBPS,
                         ),
                     ): NumberSelector(
                         NumberSelectorConfig(
                             min=0,
-                            max=1_000_000,
-                            step=1,
+                            max=8_000,
+                            step=0.01,
                             mode=NumberSelectorMode.BOX,
-                            unit_of_measurement="B/s",
+                            unit_of_measurement="Mbps",
                         )
                     ),
                     vol.Required(
