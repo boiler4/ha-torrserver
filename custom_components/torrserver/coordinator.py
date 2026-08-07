@@ -28,6 +28,8 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
         hass: HomeAssistant,
         client: TorrServerApiClient,
         scan_interval: int,
+        stream_yellow_margin: float,
+        stream_green_margin: float,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
@@ -37,6 +39,8 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
+        self.stream_yellow_margin = stream_yellow_margin
+        self.stream_green_margin = stream_green_margin
 
     async def _async_update_data(self) -> TorrServerData:
         """Fetch the latest TorrServer status."""

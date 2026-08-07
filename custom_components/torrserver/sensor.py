@@ -35,6 +35,7 @@ from .const import (
 from .entity import TorrServerEntity
 from .stream_health import (
     STREAM_HEALTH_OPTIONS,
+    StreamHealth,
     evaluate_streams_health,
     stream_health_icon,
 )
@@ -397,7 +398,17 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
     @property
     def native_value(self) -> SensorValue:
         """Return the current sensor value."""
+        if self.entity_description.key == "stream_health":
+            return self._stream_health().state
         return self.entity_description.value_fn(self.coordinator.data)
+
+    def _stream_health(self) -> StreamHealth:
+        """Evaluate streaming health with the configured speed margins."""
+        return evaluate_streams_health(
+            self.coordinator.data.streaming_torrents,
+            yellow_margin_percent=self.coordinator.stream_yellow_margin,
+            green_margin_percent=self.coordinator.stream_green_margin,
+        )
 
     @property
     def icon(self) -> str | None:
@@ -409,6 +420,17 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return limited attributes for the current torrent sensor."""
+        if self.entity_description.key == "stream_health":
+            health = self._stream_health()
+            return {
+                **health.attributes,
+                "active_torrent_count": len(self.coordinator.data.active_torrents),
+                "seeding_or_idle_count": max(
+                    len(self.coordinator.data.active_torrents)
+                    - len(self.coordinator.data.streaming_torrents),
+                    0,
+                ),
+            }
         if self.entity_description.attributes_fn is None:
             return None
         return self.entity_description.attributes_fn(self.coordinator.data)

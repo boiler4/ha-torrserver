@@ -29,16 +29,22 @@ from .const import (
     CONF_DOWNLOAD_THRESHOLD,
     CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
+    CONF_STREAM_GREEN_MARGIN,
+    CONF_STREAM_YELLOW_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
     DEFAULT_DOWNLOAD_THRESHOLD,
     DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_STREAM_GREEN_MARGIN,
+    DEFAULT_STREAM_YELLOW_MARGIN,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
+    MAX_STREAM_MARGIN,
     MIN_SCAN_INTERVAL,
+    MIN_STREAM_MARGIN,
 )
 
 
@@ -212,17 +218,24 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Manage integration options."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            yellow_margin = float(user_input[CONF_STREAM_YELLOW_MARGIN])
+            green_margin = float(user_input[CONF_STREAM_GREEN_MARGIN])
+            if green_margin <= yellow_margin:
+                errors[CONF_STREAM_GREEN_MARGIN] = "green_margin_too_low"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
         options = self.config_entry.options
+        defaults = user_input or options
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Required(
                         CONF_SCAN_INTERVAL,
-                        default=options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                        default=defaults.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): NumberSelector(
                         NumberSelectorConfig(
                             min=MIN_SCAN_INTERVAL,
@@ -234,7 +247,7 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Required(
                         CONF_DOWNLOAD_THRESHOLD,
-                        default=options.get(
+                        default=defaults.get(
                             CONF_DOWNLOAD_THRESHOLD, DEFAULT_DOWNLOAD_THRESHOLD
                         ),
                     ): NumberSelector(
@@ -247,12 +260,43 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                         )
                     ),
                     vol.Required(
+                        CONF_STREAM_YELLOW_MARGIN,
+                        default=defaults.get(
+                            CONF_STREAM_YELLOW_MARGIN,
+                            DEFAULT_STREAM_YELLOW_MARGIN,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_MARGIN,
+                            max=MAX_STREAM_MARGIN,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="%",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_GREEN_MARGIN,
+                        default=defaults.get(
+                            CONF_STREAM_GREEN_MARGIN,
+                            DEFAULT_STREAM_GREEN_MARGIN,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_MARGIN,
+                            max=MAX_STREAM_MARGIN,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="%",
+                        )
+                    ),
+                    vol.Required(
                         CONF_EXPERIMENTAL_FFPROBE,
-                        default=options.get(
+                        default=defaults.get(
                             CONF_EXPERIMENTAL_FFPROBE,
                             DEFAULT_EXPERIMENTAL_FFPROBE,
                         ),
                     ): BooleanSelector(),
                 }
             ),
+            errors=errors,
         )

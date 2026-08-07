@@ -64,58 +64,6 @@ def _bit_rate(torrent: Mapping[str, Any]) -> tuple[float, str]:
     return float(DEFAULT_BIT_RATE_BPS), "fallback_8_mbps"
 
 
-def _speed_points(ratio: float) -> int:
-    if ratio >= 1.5:
-        return 35
-    if ratio >= 1.0:
-        return 30
-    if ratio >= 0.75:
-        return 20
-    if ratio >= 0.25:
-        return 10
-    if ratio > 0:
-        return 5
-    return 0
-
-
-def _preload_points(seconds: float) -> int:
-    if seconds >= 300:
-        return 20
-    if seconds >= 120:
-        return 15
-    if seconds >= 30:
-        return 8
-    if seconds > 0:
-        return 3
-    return 0
-
-
-def _seeder_points(seeders: int) -> int:
-    if seeders >= 4:
-        return 20
-    if seeders == 3:
-        return 18
-    if seeders == 2:
-        return 14
-    if seeders == 1:
-        return 8
-    return 0
-
-
-def _peer_points(peers: int) -> int:
-    if peers >= 5:
-        return 20
-    if peers == 4:
-        return 17
-    if peers == 3:
-        return 14
-    if peers == 2:
-        return 10
-    if peers == 1:
-        return 5
-    return 0
-
-
 @dataclass(frozen=True, slots=True)
 class StreamHealth:
     """One explainable streaming-health assessment."""
@@ -133,6 +81,8 @@ def stream_health_icon(state: str) -> str:
 
 def evaluate_stream_health(
     torrent: Mapping[str, Any] | None,
+    yellow_margin_percent: float = 10,
+    green_margin_percent: float = 50,
 ) -> StreamHealth:
     """Estimate stream health without claiming knowledge of the player buffer."""
     if torrent is None:
@@ -172,41 +122,34 @@ def evaluate_stream_health(
         min(loaded_bytes / torrent_size * 100, 100.0) if torrent_size else 0.0
     )
 
-    loaded_points = 5 if loaded_percent >= 50 else 3 if loaded_percent >= 10 else 1
-    if loaded_percent == 0:
-        loaded_points = 0
-
-    score = min(
-        _seeder_points(seeders)
-        + _peer_points(active_peers)
-        + _speed_points(speed_ratio)
-        + _preload_points(estimated_preload_seconds)
-        + loaded_points,
-        100,
-    )
-
+    yellow_margin_percent = max(float(yellow_margin_percent), 0)
+    green_margin_percent = max(float(green_margin_percent), yellow_margin_percent)
+    yellow_ratio = 1 + yellow_margin_percent / 100
+    green_ratio = 1 + green_margin_percent / 100
+    minimum_yellow_speed = required_speed * yellow_ratio
+    minimum_green_speed = required_speed * green_ratio
+    fully_loaded = torrent_size > 0 and loaded_bytes >= torrent_size
     has_sources = seeders > 0 or active_peers > 0 or download_speed >= 1024
-    if not has_sources:
-        if estimated_preload_seconds >= 120:
-            state = "yellow"
-            reason = "cached_but_no_sources"
-        else:
-            state = "red"
-            reason = "no_sources"
-    elif score >= 60:
+    if fully_loaded:
         state = "green"
-        if speed_ratio >= 1:
-            reason = "download_faster_than_stream"
-        elif seeders >= 4 and estimated_preload_seconds >= 120:
-            reason = "strong_swarm_and_preload"
-        else:
-            reason = "healthy_margin"
-    elif score >= 30:
+        reason = "fully_loaded"
+        score = 100
+    elif not has_sources:
+        state = "red"
+        reason = "no_sources"
+        score = 0
+    elif download_speed >= minimum_green_speed:
+        state = "green"
+        reason = "above_green_margin"
+        score = 100
+    elif download_speed >= minimum_yellow_speed:
         state = "yellow"
-        reason = "limited_margin"
+        reason = "above_yellow_margin"
+        score = min(round(speed_ratio / green_ratio * 100), 99)
     else:
         state = "red"
-        reason = "insufficient_margin"
+        reason = "below_yellow_margin"
+        score = min(round(speed_ratio / green_ratio * 100), 99)
 
     return StreamHealth(
         state=state,
@@ -222,7 +165,16 @@ def evaluate_stream_health(
             "total_peers": total_peers,
             "download_speed_mbps": round(download_speed * 8 / 1_000_000, 2),
             "required_download_speed_mbps": round(bit_rate_bps / 1_000_000, 2),
+            "minimum_yellow_speed_mbps": round(
+                minimum_yellow_speed * 8 / 1_000_000, 2
+            ),
+            "minimum_green_speed_mbps": round(
+                minimum_green_speed * 8 / 1_000_000, 2
+            ),
             "speed_ratio": round(speed_ratio, 2),
+            "speed_margin_percent": round((speed_ratio - 1) * 100, 1),
+            "yellow_margin_percent": yellow_margin_percent,
+            "green_margin_percent": green_margin_percent,
             "preloaded_bytes": preloaded_bytes,
             "estimated_preload_seconds": round(estimated_preload_seconds, 1),
             "loaded_percent": round(loaded_percent, 1),
@@ -234,9 +186,18 @@ def evaluate_stream_health(
 
 def evaluate_streams_health(
     torrents: Iterable[Mapping[str, Any]],
+    yellow_margin_percent: float = 10,
+    green_margin_percent: float = 50,
 ) -> StreamHealth:
     """Return the worst health across every active TorrServer stream."""
-    assessments = [evaluate_stream_health(torrent) for torrent in torrents]
+    assessments = [
+        evaluate_stream_health(
+            torrent,
+            yellow_margin_percent=yellow_margin_percent,
+            green_margin_percent=green_margin_percent,
+        )
+        for torrent in torrents
+    ]
     if not assessments:
         return StreamHealth(
             state="idle",

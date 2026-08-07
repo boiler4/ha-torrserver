@@ -24,7 +24,7 @@ def test_stream_health_is_unknown_while_torrent_is_starting():
     assert health.reason == "torrent_starting"
 
 
-def test_stream_health_is_green_with_strong_swarm_and_preload():
+def test_strong_swarm_and_preload_cannot_override_insufficient_speed():
     health = evaluate_stream_health(
         {
             "stat": 3,
@@ -37,9 +37,8 @@ def test_stream_health_is_green_with_strong_swarm_and_preload():
         }
     )
 
-    assert health.state == "green"
-    assert health.score == 63
-    assert health.reason == "strong_swarm_and_preload"
+    assert health.state == "red"
+    assert health.reason == "below_yellow_margin"
     assert health.attributes["bit_rate_source"] == "fallback_8_mbps"
 
 
@@ -54,23 +53,23 @@ def test_stream_health_is_green_when_download_exceeds_stream_rate():
     )
 
     assert health.state == "green"
-    assert health.reason == "download_faster_than_stream"
+    assert health.reason == "above_green_margin"
     assert health.attributes["speed_ratio"] == 1.6
 
 
-def test_stream_health_is_yellow_with_limited_margin():
+def test_stream_health_is_yellow_between_configured_margins():
     health = evaluate_stream_health(
         {
             "stat": 3,
             "connected_seeders": 1,
             "active_peers": 1,
-            "download_speed": 500_000,
+            "download_speed": 1_200_000,
             "preloaded_bytes": 64_000_000,
         }
     )
 
     assert health.state == "yellow"
-    assert health.reason == "limited_margin"
+    assert health.reason == "above_yellow_margin"
 
 
 def test_stream_health_is_red_without_sources_or_preload():
@@ -80,13 +79,13 @@ def test_stream_health_is_red_without_sources_or_preload():
     assert health.reason == "no_sources"
 
 
-def test_stream_health_is_yellow_when_cached_but_sources_are_gone():
+def test_cached_data_cannot_override_missing_sources():
     health = evaluate_stream_health(
         {"stat": 3, "preloaded_bytes": 200_000_000}
     )
 
-    assert health.state == "yellow"
-    assert health.reason == "cached_but_no_sources"
+    assert health.state == "red"
+    assert health.reason == "no_sources"
 
 
 def test_stream_health_uses_torrserver_bit_rate_when_available():
@@ -104,6 +103,48 @@ def test_stream_health_uses_torrserver_bit_rate_when_available():
     assert health.attributes["download_speed_mbps"] == 17.6
     assert health.attributes["required_download_speed_mbps"] == 16.0
     assert health.attributes["speed_ratio"] == 1.1
+    assert health.state == "yellow"
+    assert health.attributes["minimum_yellow_speed_mbps"] == 17.6
+    assert health.attributes["minimum_green_speed_mbps"] == 24.0
+
+
+def test_stream_health_respects_custom_speed_margins():
+    yellow = evaluate_stream_health(
+        {
+            "stat": 3,
+            "connected_seeders": 2,
+            "download_speed": 1_100_000,
+        },
+        yellow_margin_percent=5,
+        green_margin_percent=20,
+    )
+    green = evaluate_stream_health(
+        {
+            "stat": 3,
+            "connected_seeders": 2,
+            "download_speed": 1_300_000,
+        },
+        yellow_margin_percent=5,
+        green_margin_percent=20,
+    )
+
+    assert yellow.state == "yellow"
+    assert green.state == "green"
+    assert yellow.attributes["yellow_margin_percent"] == 5
+    assert yellow.attributes["green_margin_percent"] == 20
+
+
+def test_completely_loaded_file_is_green_without_download_speed():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "loaded_size": 10_000_000,
+            "torrent_size": 10_000_000,
+        }
+    )
+
+    assert health.state == "green"
+    assert health.reason == "fully_loaded"
 
 
 def test_stream_health_estimates_large_4k_movie_conservatively():
@@ -173,7 +214,7 @@ def test_multiple_streams_report_the_worst_state_and_counts():
                 "stat": 3,
                 "connected_seeders": 1,
                 "active_peers": 1,
-                "download_speed": 500_000,
+                "download_speed": 1_200_000,
                 "preloaded_bytes": 64_000_000,
             },
         )
@@ -224,7 +265,7 @@ def test_starting_stream_does_not_hide_a_yellow_stream():
                 "stat": 3,
                 "connected_seeders": 1,
                 "active_peers": 1,
-                "download_speed": 500_000,
+                "download_speed": 1_200_000,
                 "preloaded_bytes": 64_000_000,
             },
         )

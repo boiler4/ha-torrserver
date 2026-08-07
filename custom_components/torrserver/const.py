@@ -12,6 +12,8 @@ CONF_VERIFY_SSL: Final = "verify_ssl"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_DOWNLOAD_THRESHOLD: Final = "download_threshold"
 CONF_EXPERIMENTAL_FFPROBE: Final = "experimental_ffprobe"
+CONF_STREAM_YELLOW_MARGIN: Final = "stream_yellow_margin"
+CONF_STREAM_GREEN_MARGIN: Final = "stream_green_margin"
 
 DEFAULT_URL: Final = "http://127.0.0.1:8090"
 DEFAULT_VERIFY_SSL: Final = True
@@ -20,6 +22,10 @@ MIN_SCAN_INTERVAL: Final = 5
 MAX_SCAN_INTERVAL: Final = 300
 DEFAULT_DOWNLOAD_THRESHOLD: Final = 1.0
 DEFAULT_EXPERIMENTAL_FFPROBE: Final = False
+DEFAULT_STREAM_YELLOW_MARGIN: Final = 10
+DEFAULT_STREAM_GREEN_MARGIN: Final = 50
+MIN_STREAM_MARGIN: Final = 0
+MAX_STREAM_MARGIN: Final = 300
 
 TORRENT_ADDED: Final = 0
 TORRENT_GETTING_INFO: Final = 1

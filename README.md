@@ -16,7 +16,7 @@ It does not add, remove, stop, or modify torrents.
 - Local polling with no cloud dependency.
 - UI configuration and reconfiguration.
 - Optional HTTP Basic authentication and HTTPS certificate verification.
-- Configurable polling interval and download activity threshold.
+- Configurable polling interval, download activity threshold, and streaming margins.
 - Explainable red/yellow/green streaming-quality estimate.
 - English and Italian translations.
 - Privacy-conscious downloadable diagnostics.
@@ -28,23 +28,26 @@ It does not add, remove, stop, or modify torrents.
 - Aggregate download and upload speed.
 - Total, active, and working torrent counts.
 - Streaming quality (`green`, `yellow`, `red`, `idle`, or `unknown`).
+- Current media bitrate in Mbps when available.
 - Current torrent title and loaded percentage.
 
 Additional entities for all status counters, peer counters, cache/I/O counters,
-chunks, pieces, preload data, duration, and bitrate are created disabled by
-default. Enable only the entities you need from the Home Assistant entity
-registry to avoid unnecessary recorder history.
+chunks, pieces, preload data, and duration are created disabled by default.
+Enable only the entities you need from the Home Assistant entity registry to
+avoid unnecessary recorder history.
 
 `Working` reflects TorrServer's official `Torrent working` state. It is not an
 exact count of open HTTP playback connections because TorrServer does not
 currently expose that count in its status model.
 
 `Streaming quality` is an estimate, not a guarantee from TorrServer or the
-player. It combines connected seeders, active peers, current download speed,
-preloaded data, loaded percentage, and the media bitrate when TorrServer makes
-it available. When bitrate is unavailable, the estimate uses a conservative
-8 Mbps fallback. Its attributes expose the score, reason, inputs, and bitrate
-source so automations and dashboards can explain the selected color.
+player. By default it is red below media bitrate plus 10%, yellow from that
+threshold up to bitrate plus 50%, and green above the 50% margin. Both margins
+are configurable in the integration options. A completely loaded file is
+green. Seeder and peer counts remain diagnostic inputs but cannot override
+insufficient download speed. When bitrate is unavailable, the estimate uses a
+conservative 8 Mbps fallback. Attributes expose the thresholds, reason, speed,
+margin, peer data, and bitrate source.
 
 ## Installation with HACS
 

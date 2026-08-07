@@ -46,16 +46,23 @@
     "step": {
       "init": {
         "title": "TorrServer options",
-        "description": "Choose polling behavior and optional experimental features. Experimental ffprobe is disabled by default and never changes TorrServer settings or torrents.",
+        "description": "Configure polling, streaming-quality speed margins, and optional experimental features. ffprobe never changes TorrServer settings or torrents.",
         "data": {
           "scan_interval": "Update interval",
           "download_threshold": "Downloading threshold",
+          "stream_yellow_margin": "Minimum margin for yellow",
+          "stream_green_margin": "Minimum margin for green",
           "experimental_ffprobe": "Experimental: exact media bitrate analysis"
         },
         "data_description": {
+          "stream_yellow_margin": "How far download speed must exceed the media bit rate to avoid red. Recommended: 10%.",
+          "stream_green_margin": "How far download speed must exceed the media bit rate to become green. Must be greater than the yellow margin. Recommended: 50%.",
           "experimental_ffprobe": "Runs TorrServer's built-in ffprobe at most once per streamed file, with a timeout and in-memory result cache."
         }
       }
+    },
+    "error": {
+      "green_margin_too_low": "The green margin must be greater than the yellow margin."
     }
   },
   "entity": {
