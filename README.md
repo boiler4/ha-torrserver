@@ -17,6 +17,7 @@ It does not add, remove, stop, or modify torrents.
 - UI configuration and reconfiguration.
 - Optional HTTP Basic authentication and HTTPS certificate verification.
 - Configurable polling interval and download activity threshold.
+- Explainable red/yellow/green streaming-quality estimate.
 - English and Italian translations.
 - Privacy-conscious downloadable diagnostics.
 - Multiple TorrServer instances are supported.
@@ -26,6 +27,7 @@ It does not add, remove, stop, or modify torrents.
 - Connectivity, downloading, and working binary sensors.
 - Aggregate download and upload speed.
 - Total, active, and working torrent counts.
+- Streaming quality (`green`, `yellow`, `red`, `idle`, or `unknown`).
 - Current torrent title and loaded percentage.
 
 Additional entities for all status counters, peer counters, cache/I/O counters,
@@ -36,6 +38,13 @@ registry to avoid unnecessary recorder history.
 `Working` reflects TorrServer's official `Torrent working` state. It is not an
 exact count of open HTTP playback connections because TorrServer does not
 currently expose that count in its status model.
+
+`Streaming quality` is an estimate, not a guarantee from TorrServer or the
+player. It combines connected seeders, active peers, current download speed,
+preloaded data, loaded percentage, and the media bitrate when TorrServer makes
+it available. When bitrate is unavailable, the estimate uses a conservative
+8 Mbit/s fallback. Its attributes expose the score, reason, inputs, and bitrate
+source so automations and dashboards can explain the selected color.
 
 ## Installation with HACS
 
@@ -70,6 +79,7 @@ entities:
   - entity: binary_sensor.torrserver_connected
   - entity: binary_sensor.torrserver_downloading
   - entity: binary_sensor.torrserver_working
+  - entity: sensor.torrserver_stream_health
   - entity: sensor.torrserver_current_torrent
   - entity: sensor.torrserver_current_loaded_percent
   - entity: sensor.torrserver_download_speed
@@ -98,4 +108,3 @@ python -m ruff check .
 
 This project is licensed under the MIT License. It is an independent community
 integration and is not an official component of TorrServer or Home Assistant.
-

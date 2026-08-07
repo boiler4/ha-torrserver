@@ -66,6 +66,16 @@
       "total_torrents": {"name": "Torrent totali"},
       "active_torrents": {"name": "Torrent attivi"},
       "working_torrents": {"name": "Torrent in attività"},
+      "stream_health": {
+        "name": "Qualità streaming",
+        "state": {
+          "idle": "Inattivo",
+          "red": "Rosso",
+          "yellow": "Giallo",
+          "green": "Verde",
+          "unknown": "Sconosciuto"
+        }
+      },
       "current_torrent": {"name": "Torrent corrente"},
       "current_loaded_percent": {"name": "Torrent corrente caricato"},
       "current_status": {"name": "Stato corrente"},
@@ -99,4 +109,3 @@
     }
   }
 }
-

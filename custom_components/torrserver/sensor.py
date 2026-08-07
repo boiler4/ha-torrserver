@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.sensor import (
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
@@ -32,6 +33,7 @@ from .const import (
     TORRENT_WORKING,
 )
 from .entity import TorrServerEntity
+from .stream_health import STREAM_HEALTH_OPTIONS, evaluate_stream_health
 
 SensorValue = str | int | float | None
 
@@ -66,6 +68,14 @@ def _current_loaded_percent(data: TorrServerData) -> float | None:
         return None
     loaded = float(current.get("loaded_size") or 0)
     return round(min(max(loaded / total * 100, 0), 100), 1)
+
+
+def _stream_health_value(data: TorrServerData) -> str:
+    return evaluate_stream_health(data.current_torrent).state
+
+
+def _stream_health_attributes(data: TorrServerData) -> dict[str, Any]:
+    return evaluate_stream_health(data.current_torrent).attributes
 
 
 def _current_attributes(data: TorrServerData) -> dict[str, Any]:
@@ -147,6 +157,14 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         translation_key="working_torrents",
         icon="mdi:movie-open-play",
         value_fn=lambda data: data.count_state(TORRENT_WORKING),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_health",
+        translation_key="stream_health",
+        device_class=SensorDeviceClass.ENUM,
+        options=STREAM_HEALTH_OPTIONS,
+        value_fn=_stream_health_value,
+        attributes_fn=_stream_health_attributes,
     ),
     TorrServerSensorEntityDescription(
         key="current_torrent",

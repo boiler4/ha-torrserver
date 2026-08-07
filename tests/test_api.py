@@ -69,6 +69,23 @@ def test_data_model_selects_fastest_active_torrent():
     assert data.count_state(5) == 1
 
 
+def test_data_model_prefers_connected_torrent_when_speeds_are_equal():
+    data = TorrServerData(
+        torrents=(
+            {"title": "Idle", "stat": 3, "timestamp": 2},
+            {
+                "title": "Streaming",
+                "stat": 3,
+                "connected_seeders": 3,
+                "active_peers": 5,
+                "timestamp": 1,
+            },
+        )
+    )
+
+    assert data.current_torrent["title"] == "Streaming"
+
+
 @pytest.mark.asyncio
 async def test_client_reads_torrents_and_version():
     session = MagicMock()

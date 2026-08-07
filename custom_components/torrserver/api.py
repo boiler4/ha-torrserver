@@ -96,6 +96,10 @@ class TorrServerData:
             key=lambda torrent: (
                 _as_float(torrent.get("download_speed")),
                 _as_float(torrent.get("upload_speed")),
+                _as_int(torrent.get("connected_seeders")),
+                _as_int(torrent.get("active_peers")),
+                _as_int(torrent.get("preloaded_bytes")),
+                _as_int(torrent.get("bytes_read_data")),
                 _as_int(torrent.get("timestamp")),
             ),
         )
