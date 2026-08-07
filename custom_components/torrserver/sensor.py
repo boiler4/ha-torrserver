@@ -75,11 +75,18 @@ def _current_loaded_percent(data: TorrServerData) -> float | None:
 
 
 def _stream_health_value(data: TorrServerData) -> str:
-    return evaluate_streams_health(data.active_torrents).state
+    return evaluate_streams_health(data.streaming_torrents).state
 
 
 def _stream_health_attributes(data: TorrServerData) -> dict[str, Any]:
-    return evaluate_streams_health(data.active_torrents).attributes
+    health = evaluate_streams_health(data.streaming_torrents)
+    return {
+        **health.attributes,
+        "active_torrent_count": len(data.active_torrents),
+        "seeding_or_idle_count": max(
+            len(data.active_torrents) - len(data.streaming_torrents), 0
+        ),
+    }
 
 
 def _current_attributes(data: TorrServerData) -> dict[str, Any]:

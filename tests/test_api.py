@@ -86,6 +86,53 @@ def test_data_model_prefers_connected_torrent_when_speeds_are_equal():
     assert data.current_torrent["title"] == "Streaming"
 
 
+def test_data_model_excludes_seed_only_torrent_from_streaming():
+    data = TorrServerData(
+        torrents=(
+            {
+                "title": "Playing",
+                "stat": 3,
+                "cache_stats_available": True,
+                "reader_count": 1,
+                "streaming_reader_count": 1,
+            },
+            {
+                "title": "Seeding",
+                "stat": 3,
+                "cache_stats_available": True,
+                "reader_count": 30,
+                "streaming_reader_count": 0,
+                "upload_speed": 500_000,
+            },
+        )
+    )
+
+    assert [torrent["title"] for torrent in data.streaming_torrents] == ["Playing"]
+
+
+def test_data_model_keeps_stream_while_its_reader_starts_downloading():
+    data = TorrServerData(
+        torrents=(
+            {
+                "title": "Starting",
+                "stat": 3,
+                "cache_stats_available": True,
+                "reader_count": 1,
+                "streaming_reader_count": 0,
+                "download_speed": 4096,
+            },
+        )
+    )
+
+    assert len(data.streaming_torrents) == 1
+
+
+def test_data_model_falls_back_when_cache_api_is_unavailable():
+    data = TorrServerData(torrents=({"title": "Legacy", "stat": 3},))
+
+    assert data.streaming_torrents == data.active_torrents
+
+
 @pytest.mark.asyncio
 async def test_client_reads_torrents_and_version():
     session = MagicMock()
@@ -100,6 +147,31 @@ async def test_client_reads_torrents_and_version():
     assert len(data.torrents) == 1
     assert data.version == "MatriX.137"
     assert session.request.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_client_enriches_torrent_with_reader_activity():
+    session = MagicMock()
+    session.request.side_effect = [
+        FakeResponse(json_data=[{"title": "Example", "stat": 3, "hash": "abc"}]),
+        FakeResponse(
+            json_data={
+                "Readers": [
+                    {"Start": 0, "End": 32, "Reader": 0},
+                    {"Start": 100, "End": 200, "Reader": 120},
+                ]
+            }
+        ),
+        FakeResponse(text_data="<h6>TorrServer MatriX.137</h6>"),
+    ]
+    client = TorrServerApiClient(session, "http://torrserver:8090")
+
+    data = await client.async_get_data()
+
+    assert data.torrents[0]["cache_stats_available"] is True
+    assert data.torrents[0]["reader_count"] == 2
+    assert data.torrents[0]["streaming_reader_count"] == 1
+    assert session.request.call_count == 3
 
 
 @pytest.mark.asyncio

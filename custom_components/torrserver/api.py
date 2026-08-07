@@ -86,6 +86,28 @@ class TorrServerData:
         )
 
     @property
+    def streaming_torrents(self) -> tuple[dict[str, Any], ...]:
+        """Return torrents with a reader that is actually serving a stream."""
+        active = self.active_torrents
+        inspected = tuple(
+            torrent
+            for torrent in active
+            if torrent.get("cache_stats_available") is True
+        )
+        if not inspected:
+            # Compatibility fallback for TorrServer versions without /cache data.
+            return active
+        return tuple(
+            torrent
+            for torrent in inspected
+            if _as_int(torrent.get("streaming_reader_count")) > 0
+            or (
+                _as_int(torrent.get("reader_count")) > 0
+                and _as_float(torrent.get("download_speed")) >= 1024
+            )
+        )
+
+    @property
     def current_torrent(self) -> dict[str, Any] | None:
         """Return the most relevant active torrent."""
         active = self.active_torrents
@@ -155,9 +177,43 @@ class TorrServerApiClient:
             self._version = f"MatriX.{match.group(1)}"
         return self._version
 
+    async def async_get_cache_state(self, torrent_hash: str) -> dict[str, Any]:
+        """Return the officially exposed cache and reader state for a torrent."""
+        payload = await self._async_request_json(
+            "POST", "/cache", json={"action": "get", "hash": torrent_hash}
+        )
+        if not isinstance(payload, dict):
+            raise TorrServerCannotConnect("Unexpected response from /cache")
+        return payload
+
     async def async_get_data(self) -> TorrServerData:
         """Fetch a complete read-only snapshot."""
-        torrents = await self.async_get_torrents()
+        torrents = tuple(dict(torrent) for torrent in await self.async_get_torrents())
+        cache_targets = [
+            torrent
+            for torrent in torrents
+            if _as_int(torrent.get("stat")) in ACTIVE_STATES and torrent.get("hash")
+        ]
+        cache_results = await asyncio.gather(
+            *(
+                self.async_get_cache_state(str(torrent["hash"]))
+                for torrent in cache_targets
+            ),
+            return_exceptions=True,
+        )
+        for torrent, cache_result in zip(cache_targets, cache_results, strict=True):
+            if isinstance(cache_result, BaseException):
+                torrent["cache_stats_available"] = False
+                continue
+            readers = cache_result.get("Readers")
+            if not isinstance(readers, list):
+                readers = []
+            torrent["cache_stats_available"] = True
+            torrent["reader_count"] = len(readers)
+            torrent["streaming_reader_count"] = sum(
+                isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
+                for reader in readers
+            )
         version = await self.async_get_version()
         return TorrServerData(torrents=torrents, version=version)
 
