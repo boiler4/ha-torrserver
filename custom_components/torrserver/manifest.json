@@ -3,6 +3,7 @@
   "name": "TorrServer",
   "codeowners": ["@boiler4"],
   "config_flow": true,
+  "dependencies": ["network"],
   "documentation": "https://github.com/boiler4/ha-torrserver",
   "integration_type": "hub",
   "iot_class": "local_polling",
