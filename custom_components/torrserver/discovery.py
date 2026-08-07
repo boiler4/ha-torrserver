@@ -12,7 +12,7 @@ from typing import Any
 from aiohttp import ClientError, ClientSession
 
 _VERSION_PATTERN = re.compile(
-    r"TorrServer\s+MatriX[.\s-]*([0-9][A-Za-z0-9._-]*)", re.IGNORECASE
+    r"(?:TorrServer\s+)?MatriX[.\s-]*([0-9][A-Za-z0-9._-]*)", re.IGNORECASE
 )
 DEFAULT_DISCOVERY_PORTS = (("http", 8090), ("https", 8091))
 MAX_DISCOVERY_HOSTS = 512
@@ -95,7 +95,7 @@ async def async_discover_torrservers(
             async with (
                 semaphore,
                 asyncio.timeout(timeout),
-                session.get(url, ssl=False, allow_redirects=True) as response,
+                session.get(f"{url}/echo", ssl=False, allow_redirects=True) as response,
             ):
                 if response.status in {401, 403}:
                     return DiscoveredTorrServer(url, None, True)

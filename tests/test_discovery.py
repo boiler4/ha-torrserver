@@ -74,13 +74,16 @@ class _Session:
 async def test_discovery_accepts_torrserver_and_locked_candidate_without_auth():
     session = _Session(
         {
-            "http://open:8090": _Response(200, "TorrServer MatriX.136"),
-            "http://locked:8090": _Response(401),
-            "http://other:8090": _Response(200, "not TorrServer"),
+            "http://open:8090/echo": _Response(200, "MatriX.136"),
+            "http://locked:8090/echo": _Response(401),
+            "http://other:8090/echo": _Response(200, "not TorrServer"),
         }
     )
 
-    results = await async_discover_torrservers(session, session.responses)
+    results = await async_discover_torrservers(
+        session,
+        ("http://open:8090", "http://locked:8090", "http://other:8090"),
+    )
 
     assert [(item.url, item.version, item.auth_required) for item in results] == [
         ("http://locked:8090", None, True),
