@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Final
 
 DEFAULT_BIT_RATE_BPS: Final = 8_000_000
 STREAM_HEALTH_OPTIONS: Final = ["idle", "red", "yellow", "green", "unknown"]
+STREAM_HEALTH_ICONS: Final = {
+    "idle": "mdi:minus-circle-outline",
+    "red": "mdi:alert-circle",
+    "yellow": "mdi:alert",
+    "green": "mdi:check-circle",
+    "unknown": "mdi:help-circle-outline",
+}
+_STATE_PRIORITY: Final = {"green": 0, "unknown": 1, "yellow": 2, "red": 3}
 
 
 def _as_float(value: Any) -> float:
@@ -91,6 +100,11 @@ class StreamHealth:
     score: int | None
     reason: str
     attributes: dict[str, Any]
+
+
+def stream_health_icon(state: str) -> str:
+    """Return the icon associated with a streaming-health state."""
+    return STREAM_HEALTH_ICONS.get(state, "mdi:traffic-light")
 
 
 def evaluate_stream_health(
@@ -191,4 +205,54 @@ def evaluate_stream_health(
             "bit_rate_bps": round(bit_rate_bps),
             "bit_rate_source": bit_rate_source,
         },
+    )
+
+
+def evaluate_streams_health(
+    torrents: Iterable[Mapping[str, Any]],
+) -> StreamHealth:
+    """Return the worst health across every active TorrServer stream."""
+    assessments = [evaluate_stream_health(torrent) for torrent in torrents]
+    if not assessments:
+        return StreamHealth(
+            state="idle",
+            score=None,
+            reason="no_active_torrent",
+            attributes={
+                "estimated": True,
+                "reason": "no_active_torrent",
+                "stream_count": 0,
+                "green_streams": 0,
+                "yellow_streams": 0,
+                "red_streams": 0,
+                "unknown_streams": 0,
+            },
+        )
+
+    worst = max(assessments, key=lambda item: _STATE_PRIORITY[item.state])
+    counts = Counter(item.state for item in assessments)
+    scored = [item.score for item in assessments if item.score is not None]
+
+    attributes = {
+        "estimated": True,
+        "reason": worst.reason,
+        "stream_count": len(assessments),
+        "green_streams": counts["green"],
+        "yellow_streams": counts["yellow"],
+        "red_streams": counts["red"],
+        "unknown_streams": counts["unknown"],
+        "worst_score": min(scored) if scored else None,
+        "worst_reason": worst.reason,
+    }
+    if len(assessments) == 1:
+        attributes.update(worst.attributes)
+        attributes["stream_count"] = 1
+        attributes["worst_score"] = worst.score
+        attributes["worst_reason"] = worst.reason
+
+    return StreamHealth(
+        state=worst.state,
+        score=min(scored) if scored else None,
+        reason=worst.reason,
+        attributes=attributes,
     )

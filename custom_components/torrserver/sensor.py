@@ -33,7 +33,11 @@ from .const import (
     TORRENT_WORKING,
 )
 from .entity import TorrServerEntity
-from .stream_health import STREAM_HEALTH_OPTIONS, evaluate_stream_health
+from .stream_health import (
+    STREAM_HEALTH_OPTIONS,
+    evaluate_streams_health,
+    stream_health_icon,
+)
 
 SensorValue = str | int | float | None
 
@@ -71,11 +75,11 @@ def _current_loaded_percent(data: TorrServerData) -> float | None:
 
 
 def _stream_health_value(data: TorrServerData) -> str:
-    return evaluate_stream_health(data.current_torrent).state
+    return evaluate_streams_health(data.active_torrents).state
 
 
 def _stream_health_attributes(data: TorrServerData) -> dict[str, Any]:
-    return evaluate_stream_health(data.current_torrent).attributes
+    return evaluate_streams_health(data.active_torrents).attributes
 
 
 def _current_attributes(data: TorrServerData) -> dict[str, Any]:
@@ -356,6 +360,13 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
     def native_value(self) -> SensorValue:
         """Return the current sensor value."""
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def icon(self) -> str | None:
+        """Return a state-aware icon for streaming health."""
+        if self.entity_description.key == "stream_health":
+            return stream_health_icon(str(self.native_value))
+        return self.entity_description.icon
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
