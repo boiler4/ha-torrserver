@@ -58,6 +58,22 @@ def _active_sum(data: TorrServerData, key: str) -> int:
     return round(data.active_sum(key))
 
 
+def _bytes_per_second_to_mbps(value: Any) -> float | None:
+    """Convert bytes per second to megabits per second."""
+    try:
+        return round(float(value) * 8 / 1_000_000, 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _bits_per_second_to_mbps(value: Any) -> float | None:
+    """Convert bits per second to megabits per second."""
+    try:
+        return round(float(value) / 1_000_000, 2)
+    except (TypeError, ValueError):
+        return None
+
+
 def _current_value(data: TorrServerData, key: str) -> SensorValue:
     current = data.current_torrent
     return current.get(key) if current else None
@@ -101,17 +117,25 @@ def _current_attributes(data: TorrServerData) -> dict[str, Any]:
         "torrent_size",
         "preloaded_bytes",
         "preload_size",
-        "download_speed",
-        "upload_speed",
         "total_peers",
         "pending_peers",
         "active_peers",
         "connected_seeders",
         "half_open_peers",
         "duration_seconds",
-        "bit_rate",
     )
-    return {key: current[key] for key in allowed if key in current}
+    attributes = {key: current[key] for key in allowed if key in current}
+    if "download_speed" in current:
+        attributes["download_speed_mbps"] = _bytes_per_second_to_mbps(
+            current["download_speed"]
+        )
+    if "upload_speed" in current:
+        attributes["upload_speed_mbps"] = _bytes_per_second_to_mbps(
+            current["upload_speed"]
+        )
+    if (bit_rate_mbps := _bits_per_second_to_mbps(current.get("bit_rate"))) is not None:
+        attributes["bit_rate_mbps"] = bit_rate_mbps
+    return attributes
 
 
 def _diagnostic_description(
@@ -139,17 +163,21 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         key="download_speed",
         translation_key="download_speed",
         icon="mdi:download-network",
-        native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: round(data.active_sum("download_speed"), 2),
+        value_fn=lambda data: _bytes_per_second_to_mbps(
+            data.active_sum("download_speed")
+        ),
     ),
     TorrServerSensorEntityDescription(
         key="upload_speed",
         translation_key="upload_speed",
         icon="mdi:upload-network",
-        native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: round(data.active_sum("upload_speed"), 2),
+        value_fn=lambda data: _bytes_per_second_to_mbps(
+            data.active_sum("upload_speed")
+        ),
     ),
     TorrServerSensorEntityDescription(
         key="total_torrents",
@@ -332,9 +360,11 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         translation_key="current_bit_rate",
         icon="mdi:speedometer",
         device_class=SensorDeviceClass.DATA_RATE,
-        native_unit_of_measurement=UnitOfDataRate.BITS_PER_SECOND,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: _current_value(data, "bit_rate"),
+        value_fn=lambda data: _bits_per_second_to_mbps(
+            _current_value(data, "bit_rate")
+        ),
     ),
 )
 

@@ -101,7 +101,8 @@ def test_stream_health_uses_torrserver_bit_rate_when_available():
     )
 
     assert health.attributes["bit_rate_source"] == "torrserver"
-    assert health.attributes["required_download_speed_bps"] == 2_000_000
+    assert health.attributes["download_speed_mbps"] == 17.6
+    assert health.attributes["required_download_speed_mbps"] == 16.0
     assert health.attributes["speed_ratio"] == 1.1
 
 
@@ -119,7 +120,7 @@ def test_stream_health_estimates_large_4k_movie_conservatively():
     )
 
     assert health.state == "red"
-    assert health.attributes["bit_rate_bps"] == 40_000_000
+    assert health.attributes["bit_rate_mbps"] == 40.0
     assert health.attributes["bit_rate_source"] == "auto_4k_large"
     assert health.attributes["speed_ratio"] == 0.17
 
@@ -138,7 +139,7 @@ def test_stream_health_prefers_size_and_duration_over_title_profile():
     )
 
     assert health.attributes["bit_rate_source"] == "size_and_duration"
-    assert health.attributes["bit_rate_bps"] == 10_000_000
+    assert health.attributes["bit_rate_mbps"] == 10.0
 
 
 def test_torrserver_bit_rate_wins_over_automatic_4k_profile():
@@ -155,7 +156,7 @@ def test_torrserver_bit_rate_wins_over_automatic_4k_profile():
     )
 
     assert health.attributes["bit_rate_source"] == "torrserver"
-    assert health.attributes["bit_rate_bps"] == 18_000_000
+    assert health.attributes["bit_rate_mbps"] == 18.0
 
 
 def test_multiple_streams_report_the_worst_state_and_counts():

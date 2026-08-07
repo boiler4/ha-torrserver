@@ -43,7 +43,7 @@ currently expose that count in its status model.
 player. It combines connected seeders, active peers, current download speed,
 preloaded data, loaded percentage, and the media bitrate when TorrServer makes
 it available. When bitrate is unavailable, the estimate uses a conservative
-8 Mbit/s fallback. Its attributes expose the score, reason, inputs, and bitrate
+8 Mbps fallback. Its attributes expose the score, reason, inputs, and bitrate
 source so automations and dashboards can explain the selected color.
 
 ## Installation with HACS
