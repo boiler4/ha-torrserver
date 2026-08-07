@@ -331,8 +331,9 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         key="current_bit_rate",
         translation_key="current_bit_rate",
         icon="mdi:speedometer",
-        entity_category=EntityCategory.DIAGNOSTIC,
-        entity_registry_enabled_default=False,
+        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UnitOfDataRate.BITS_PER_SECOND,
+        state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _current_value(data, "bit_rate"),
     ),
 )
