@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0-beta.2
+
+- Base streaming health on playable seconds ahead of TorrServer's active reader.
+- Replace `healthy`/`warning`/`critical` with `protected`/`stable`/`insufficient`.
+- Expose playable buffer seconds and buffer mode/trend diagnostics.
+- Read cache capacity, fill, and reader positions from TorrServer's official `/cache` endpoint.
+- Add configurable buffer thresholds, speed margins, and downgrade delay.
+- Add downgrade hysteresis while preserving immediate emergency detection.
+
 ## 0.3.0-beta.1
 
 - Add bounded on-demand local discovery with protected-server detection.

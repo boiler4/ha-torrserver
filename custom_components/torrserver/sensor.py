@@ -34,6 +34,7 @@ from .const import (
 )
 from .entity import TorrServerEntity
 from .stream_health import (
+    STREAM_BUFFER_MODE_OPTIONS,
     STREAM_HEALTH_OPTIONS,
     StreamHealth,
     evaluate_streams_health,
@@ -90,6 +91,29 @@ def _stream_average_speed(data: TorrServerData) -> float:
         )
         for torrent in data.streaming_torrents
     )
+
+
+def _stream_buffer_seconds(data: TorrServerData) -> float | None:
+    """Return the least protected active reader buffer in seconds."""
+    values = [
+        float(torrent["buffer_seconds"])
+        for torrent in data.streaming_torrents
+        if torrent.get("buffer_seconds") is not None
+    ]
+    return round(min(values), 1) if values else None
+
+
+def _stream_buffer_mode(data: TorrServerData) -> str:
+    """Return the shared buffer mode or mark simultaneous mixed modes."""
+    modes = {
+        str(torrent.get("buffer_mode") or "unknown")
+        for torrent in data.streaming_torrents
+    }
+    if not modes:
+        return "idle"
+    if len(modes) > 1:
+        return "multiple"
+    return modes.pop()
 
 
 def _current_loaded_percent(data: TorrServerData) -> float | None:
@@ -199,6 +223,22 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda data: _bytes_per_second_to_mbps(_stream_average_speed(data)),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_buffer_seconds",
+        translation_key="stream_buffer_seconds",
+        icon="mdi:timer-play-outline",
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=_stream_buffer_seconds,
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_buffer_mode",
+        translation_key="stream_buffer_mode",
+        icon="mdi:buffer",
+        device_class=SensorDeviceClass.ENUM,
+        options=STREAM_BUFFER_MODE_OPTIONS,
+        value_fn=_stream_buffer_mode,
     ),
     TorrServerSensorEntityDescription(
         key="total_torrents",
@@ -423,11 +463,15 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
     def _stream_health(self) -> StreamHealth:
-        """Evaluate streaming health with the configured speed margins."""
+        """Evaluate buffer-first health with the configured thresholds."""
         return evaluate_streams_health(
             self.coordinator.data.streaming_torrents,
-            yellow_margin_percent=self.coordinator.stream_yellow_margin,
-            green_margin_percent=self.coordinator.stream_green_margin,
+            stable_margin_percent=self.coordinator.stream_stable_margin,
+            preload_margin_percent=self.coordinator.stream_preload_margin,
+            low_buffer_seconds=self.coordinator.stream_low_buffer_seconds,
+            protected_buffer_seconds=(
+                self.coordinator.stream_protected_buffer_seconds
+            ),
         )
 
     @property

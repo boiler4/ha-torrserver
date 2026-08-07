@@ -35,24 +35,34 @@ from .const import (
     CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
     CONF_STREAM_AVERAGE_WINDOW,
-    CONF_STREAM_GREEN_MARGIN,
-    CONF_STREAM_YELLOW_MARGIN,
+    CONF_STREAM_DOWNGRADE_DELAY,
+    CONF_STREAM_LOW_BUFFER_SECONDS,
+    CONF_STREAM_PRELOAD_MARGIN,
+    CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+    CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
     DEFAULT_DOWNLOAD_THRESHOLD_MBPS,
     DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_STREAM_AVERAGE_WINDOW,
-    DEFAULT_STREAM_GREEN_MARGIN,
-    DEFAULT_STREAM_YELLOW_MARGIN,
+    DEFAULT_STREAM_DOWNGRADE_DELAY,
+    DEFAULT_STREAM_LOW_BUFFER_SECONDS,
+    DEFAULT_STREAM_PRELOAD_MARGIN,
+    DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+    DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
     DOMAIN,
     MAX_SCAN_INTERVAL,
     MAX_STREAM_AVERAGE_WINDOW,
+    MAX_STREAM_BUFFER_SECONDS,
+    MAX_STREAM_DOWNGRADE_DELAY,
     MAX_STREAM_MARGIN,
     MIN_SCAN_INTERVAL,
     MIN_STREAM_AVERAGE_WINDOW,
+    MIN_STREAM_BUFFER_SECONDS,
+    MIN_STREAM_DOWNGRADE_DELAY,
     MIN_STREAM_MARGIN,
 )
 from .discovery import (
@@ -358,12 +368,20 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
         """Manage integration options."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            yellow_margin = float(user_input[CONF_STREAM_YELLOW_MARGIN])
-            green_margin = float(user_input[CONF_STREAM_GREEN_MARGIN])
+            stable_margin = float(user_input[CONF_STREAM_STABLE_MARGIN])
+            preload_margin = float(user_input[CONF_STREAM_PRELOAD_MARGIN])
+            low_buffer = float(user_input[CONF_STREAM_LOW_BUFFER_SECONDS])
+            protected_buffer = float(
+                user_input[CONF_STREAM_PROTECTED_BUFFER_SECONDS]
+            )
             average_window = float(user_input[CONF_STREAM_AVERAGE_WINDOW])
             scan_interval = float(user_input[CONF_SCAN_INTERVAL])
-            if green_margin <= yellow_margin:
-                errors[CONF_STREAM_GREEN_MARGIN] = "green_margin_too_low"
+            if preload_margin <= stable_margin:
+                errors[CONF_STREAM_PRELOAD_MARGIN] = "preload_margin_too_low"
+            elif protected_buffer <= low_buffer:
+                errors[CONF_STREAM_PROTECTED_BUFFER_SECONDS] = (
+                    "protected_buffer_too_low"
+                )
             elif average_window < scan_interval:
                 errors[CONF_STREAM_AVERAGE_WINDOW] = "average_window_too_short"
             else:
@@ -421,10 +439,40 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                         )
                     ),
                     vol.Required(
-                        CONF_STREAM_YELLOW_MARGIN,
+                        CONF_STREAM_LOW_BUFFER_SECONDS,
                         default=defaults.get(
-                            CONF_STREAM_YELLOW_MARGIN,
-                            DEFAULT_STREAM_YELLOW_MARGIN,
+                            CONF_STREAM_LOW_BUFFER_SECONDS,
+                            DEFAULT_STREAM_LOW_BUFFER_SECONDS,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_BUFFER_SECONDS,
+                            max=MAX_STREAM_BUFFER_SECONDS,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+                        default=defaults.get(
+                            CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+                            DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_BUFFER_SECONDS,
+                            max=MAX_STREAM_BUFFER_SECONDS,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_STABLE_MARGIN,
+                        default=defaults.get(
+                            CONF_STREAM_STABLE_MARGIN,
+                            DEFAULT_STREAM_STABLE_MARGIN,
                         ),
                     ): NumberSelector(
                         NumberSelectorConfig(
@@ -436,10 +484,10 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                         )
                     ),
                     vol.Required(
-                        CONF_STREAM_GREEN_MARGIN,
+                        CONF_STREAM_PRELOAD_MARGIN,
                         default=defaults.get(
-                            CONF_STREAM_GREEN_MARGIN,
-                            DEFAULT_STREAM_GREEN_MARGIN,
+                            CONF_STREAM_PRELOAD_MARGIN,
+                            DEFAULT_STREAM_PRELOAD_MARGIN,
                         ),
                     ): NumberSelector(
                         NumberSelectorConfig(
@@ -448,6 +496,21 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                             step=1,
                             mode=NumberSelectorMode.BOX,
                             unit_of_measurement="%",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_DOWNGRADE_DELAY,
+                        default=defaults.get(
+                            CONF_STREAM_DOWNGRADE_DELAY,
+                            DEFAULT_STREAM_DOWNGRADE_DELAY,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_DOWNGRADE_DELAY,
+                            max=MAX_STREAM_DOWNGRADE_DELAY,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
                         )
                     ),
                     vol.Required(

@@ -295,9 +295,28 @@ class TorrServerApiClient:
                 readers = []
             torrent["cache_stats_available"] = True
             torrent["reader_count"] = len(readers)
-            torrent["streaming_reader_count"] = sum(
-                isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
+            active_readers = [
+                reader
                 for reader in readers
+                if isinstance(reader, dict) and _as_int(reader.get("Reader")) > 0
+            ]
+            torrent["streaming_reader_count"] = len(active_readers)
+            capacity = _as_int(cache_result.get("Capacity"))
+            filled = _as_int(cache_result.get("Filled"))
+            piece_length = _as_int(cache_result.get("PiecesLength"))
+            torrent["cache_capacity_bytes"] = capacity
+            torrent["cache_filled_bytes"] = filled
+            torrent["cache_fill_percent"] = (
+                min(filled / capacity * 100, 100.0) if capacity > 0 else None
+            )
+            ahead_values = [
+                max(_as_int(reader.get("End")) - _as_int(reader.get("Reader")), 0)
+                * piece_length
+                for reader in active_readers
+                if piece_length > 0
+            ]
+            torrent["buffer_ahead_bytes"] = (
+                min(ahead_values) if ahead_values else None
             )
             cache_states[str(torrent["hash"])] = cache_result
         if self._experimental_ffprobe:

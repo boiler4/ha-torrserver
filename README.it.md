@@ -6,7 +6,7 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-> `0.3.0-beta.1` è una versione di test e rimane sulla branch beta fino alla
+> `0.3.0-beta.2` è una versione di test e rimane sulla branch beta fino alla
 > conclusione delle verifiche.
 
 ## Funzioni principali
@@ -15,9 +15,9 @@ Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 - Autenticazione Basic, HTTPS e certificati autofirmati.
 - Velocità download/upload, media streaming sensibile alla cache, bitrate,
   torrent/riproduzioni attive, peer, seed e diagnostica completa.
-- Salute streaming nativa: `healthy` (Buona), `warning` (Attenzione),
-  `critical` (Critica), `measuring`, `idle` e `unknown`.
-- Intervallo, finestra media e margini percentuali configurabili.
+- Salute streaming nativa: `protected` (Protetta), `stable` (Stabile),
+  `insufficient` (Non sufficiente), `measuring`, `idle` e `unknown`.
+- Secondi di buffer riproducibile, soglie, margini e ritardo configurabili.
 - Analisi sperimentale del bitrate reale tramite `/ffp` di TorrServer.
 - Interfaccia in italiano, inglese e russo; diagnostica, System Health e Repairs.
 
@@ -51,22 +51,23 @@ Contano soltanto i torrent con un lettore cache TorrServer realmente attivo: un
 torrent soltanto in seed non peggiora lo stato. Con più riproduzioni viene
 mostrato lo stato peggiore e gli attributi riportano i conteggi separati.
 
-La velocità è una media mobile per riproduzione, 15 secondi per impostazione
-predefinita:
+Il segnale principale sono i secondi realmente disponibili davanti al lettore,
+calcolati dalle posizioni ufficiali `/cache` e dal bitrate:
 
-- **Critica** sotto bitrate + margine Attenzione;
-- **Attenzione** sopra la prima soglia ma sotto il margine Buona;
-- **Buona** sopra bitrate + margine Buona oppure file completamente scaricato;
-- **Misurazione** finché non sono disponibili campioni sufficienti.
+- **Protetta** con almeno 60 secondi, cache piena o file completo;
+- **Stabile** con almeno 15 secondi oppure buffer basso che riesce a recuperare;
+- **Non sufficiente** sotto 15 secondi quando velocità e andamento del buffer
+  non riescono a sostenere la riproduzione;
+- **Misurazione** quando mancano ancora dati sufficienti.
 
-I valori iniziali sono 10% per Attenzione e 50% per Buona. Quando la cache
-obiettivo raggiunge almeno il 95% e TorrServer si ferma intenzionalmente a zero,
-lo zero non entra nella media e resta valido l’ultimo valore. Quando la cache si
-svuota, i nuovi campioni—compreso un vero zero—tornano a essere valutati.
+La modalità buffer è separata: `full`, `preloading`, `stable`, `draining`,
+`recovering` o `unknown`. Le impostazioni predefinite sono 15/60 secondi, margini
+velocità 0%/10%, media 15 secondi e ritardo di peggioramento 15 secondi. Tutti
+questi valori sono modificabili. Sotto 5 secondi o senza sorgenti utilizzabili
+lo stato peggiora immediatamente.
 
-È una stima spiegabile, non una garanzia del player. Negli attributi trovi
-velocità istantanea/media in Mbps, bitrate, soglie, cache, campioni, peer, seed,
-motivazione e origine del bitrate.
+Negli attributi trovi secondi, modalità e andamento buffer, velocità in Mbps,
+bitrate, soglie, cache, campioni, peer, seed, motivazione e transizione pendente.
 
 ## Semaforo nativo
 

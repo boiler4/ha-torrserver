@@ -12,15 +12,21 @@ from .const import (
     CONF_EXPERIMENTAL_FFPROBE,
     CONF_SCAN_INTERVAL,
     CONF_STREAM_AVERAGE_WINDOW,
-    CONF_STREAM_GREEN_MARGIN,
-    CONF_STREAM_YELLOW_MARGIN,
+    CONF_STREAM_DOWNGRADE_DELAY,
+    CONF_STREAM_LOW_BUFFER_SECONDS,
+    CONF_STREAM_PRELOAD_MARGIN,
+    CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+    CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
     DEFAULT_EXPERIMENTAL_FFPROBE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_STREAM_AVERAGE_WINDOW,
-    DEFAULT_STREAM_GREEN_MARGIN,
-    DEFAULT_STREAM_YELLOW_MARGIN,
+    DEFAULT_STREAM_DOWNGRADE_DELAY,
+    DEFAULT_STREAM_LOW_BUFFER_SECONDS,
+    DEFAULT_STREAM_PRELOAD_MARGIN,
+    DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+    DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_VERIFY_SSL,
 )
 from .coordinator import TorrServerDataUpdateCoordinator
@@ -54,10 +60,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: TorrServerConfigEntry) -
         client,
         scan_interval,
         float(
-            entry.options.get(CONF_STREAM_YELLOW_MARGIN, DEFAULT_STREAM_YELLOW_MARGIN)
+            entry.options.get(CONF_STREAM_STABLE_MARGIN, DEFAULT_STREAM_STABLE_MARGIN)
         ),
-        float(entry.options.get(CONF_STREAM_GREEN_MARGIN, DEFAULT_STREAM_GREEN_MARGIN)),
+        float(
+            entry.options.get(CONF_STREAM_PRELOAD_MARGIN, DEFAULT_STREAM_PRELOAD_MARGIN)
+        ),
         average_window,
+        float(
+            entry.options.get(
+                CONF_STREAM_LOW_BUFFER_SECONDS, DEFAULT_STREAM_LOW_BUFFER_SECONDS
+            )
+        ),
+        float(
+            entry.options.get(
+                CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+                DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+            )
+        ),
+        float(
+            entry.options.get(
+                CONF_STREAM_DOWNGRADE_DELAY, DEFAULT_STREAM_DOWNGRADE_DELAY
+            )
+        ),
         entry.entry_id,
     )
     await coordinator.async_config_entry_first_refresh()

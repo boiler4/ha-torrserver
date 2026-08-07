@@ -10,18 +10,19 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-> `0.3.0-beta.1` is a test release. Keep it on the beta branch until the new
+> `0.3.0-beta.2` is a test release. Keep it on the beta branch until the new
 > discovery and streaming-health logic has been validated.
 
 ## Highlights
 
 - One-click local discovery or manual URL configuration.
 - HTTP Basic authentication, HTTPS, and self-signed certificate support.
-- Download/upload speed, cache-aware average streaming speed, torrent counts,
-  active playback, peers, seeders, cache and I/O statistics.
-- Native streaming-health states: `healthy`, `warning`, `critical`,
+- Download/upload speed, playable buffer in seconds, average streaming speed,
+  torrent counts, active playback, peers, seeders, cache and I/O statistics.
+- Native streaming-health states: `protected`, `stable`, `insufficient`,
   `measuring`, `idle`, and `unknown`.
-- Configurable polling, averaging window, warning margin, and healthy margin.
+- Configurable polling, averaging window, buffer thresholds, speed margins,
+  and downgrade delay.
 - Optional experimental real bitrate analysis through TorrServer `/ffp`.
 - English, Italian, and Russian user interface.
 - Privacy-conscious diagnostics, System Health, Repairs, and GitHub Issue Forms.
@@ -61,27 +62,32 @@ Other loaded or seeding torrents do not affect the health indicator. With
 multiple simultaneous streams, the entity reports the worst active state and
 its attributes include a count for every state.
 
-The calculation uses a rolling average for each stream (15 seconds by default):
+The primary signal is playable data ahead of TorrServer's active reader. It is
+calculated from the official `/cache` reader positions and converted to seconds
+using the detected media bitrate:
 
-- **Critical**: average speed is below media bitrate plus the warning margin.
-- **Warning**: average speed is at or above bitrate plus the warning margin,
-  but below the healthy margin.
-- **Healthy**: average speed is at or above bitrate plus the healthy margin, or
-  the file is completely loaded.
-- **Measuring**: not enough speed samples have been collected yet.
+- **Protected**: at least 60 playable seconds, a full cache, or a completely
+  loaded file.
+- **Stable**: at least 15 playable seconds, or a low buffer whose download can
+  sustain and recover playback.
+- **Insufficient**: fewer than 15 playable seconds while speed and buffer trend
+  cannot recover playback.
+- **Measuring**: reader-buffer data is unavailable and speed samples are still
+  being collected.
 
-Defaults are 10% for Warning and 50% for Healthy. Both margins and the averaging
-window are configurable. The window must be at least as long as the polling
-interval.
+The buffer mode is exposed separately as `full`, `preloading`, `stable`,
+`draining`, `recovering`, or `unknown`. This keeps a full cache Protected even
+when TorrServer intentionally slows or pauses its download.
 
-When TorrServer fills its target cache (95% or more) and intentionally pauses
-at 0 Mbps, that zero is excluded and the last valid average is held. When the
-cache drains, new samples—including a genuine zero—are evaluated again. This
-avoids a false red indicator without hiding a real stalled download.
+Defaults are 15 seconds for low buffer, 60 seconds for Protected, 0% sustainable
+speed margin, 10% preloading margin, a 15-second average, and a 15-second
+non-emergency downgrade delay. All are configurable. Emergency conditions at
+five seconds or no usable sources are applied immediately.
 
-This is an explainable estimate, not a guarantee from the player. Entity
-attributes expose instantaneous and average Mbps, bitrate, thresholds, margin,
-cache fill, sample count, peers, seeders, reason, and bitrate source.
+This is an explainable estimate, not a player guarantee. Attributes expose
+playable seconds, buffer mode and trend, instantaneous/average Mbps, bitrate,
+thresholds, cache fill, samples, peers, seeders, reason, pending transition,
+and bitrate source.
 
 ## Native traffic-light dashboard
 
@@ -95,7 +101,7 @@ cards:
     conditions:
       - condition: state
         entity: sensor.torrserver_stream_health
-        state: healthy
+        state: protected
     card:
       type: tile
       entity: sensor.torrserver_stream_health
@@ -106,7 +112,7 @@ cards:
     conditions:
       - condition: state
         entity: sensor.torrserver_stream_health
-        state: warning
+        state: stable
     card:
       type: tile
       entity: sensor.torrserver_stream_health
@@ -117,7 +123,7 @@ cards:
     conditions:
       - condition: state
         entity: sensor.torrserver_stream_health
-        state: critical
+        state: insufficient
     card:
       type: tile
       entity: sensor.torrserver_stream_health
@@ -128,13 +134,13 @@ cards:
     conditions:
       - condition: state
         entity: sensor.torrserver_stream_health
-        state_not: healthy
+        state_not: protected
       - condition: state
         entity: sensor.torrserver_stream_health
-        state_not: warning
+        state_not: stable
       - condition: state
         entity: sensor.torrserver_stream_health
-        state_not: critical
+        state_not: insufficient
     card:
       type: tile
       entity: sensor.torrserver_stream_health
@@ -172,8 +178,8 @@ server-administration steps and are never performed by this integration.
 ## Entities and units
 
 Default entities include connectivity, download activity, TorrServer working
-state, instantaneous download/upload speed, cache-aware average streaming speed,
-total/active/working torrent counts, streaming health, current torrent, loaded
+state, instantaneous download/upload speed, average streaming speed, playable
+buffer seconds, torrent counts, streaming health, current torrent, loaded
 percentage, and current bitrate. All exposed speeds and bitrates use Mbps.
 
 Lower-level status, peer, cache, byte, chunk, piece, preload, and duration

@@ -69,3 +69,28 @@ def test_full_cache_without_history_does_not_claim_a_failed_download():
 
     assert paused["average_download_speed"] is None
     assert paused["average_speed_source"] == "cache_full_no_history"
+
+
+def test_tracker_uses_official_cache_fill_and_reader_buffer_trend():
+    tracker = StreamSpeedTracker()
+    first = {
+        "hash": "abc",
+        "download_speed": 2_000_000,
+        "cache_fill_percent": 100,
+        "buffer_ahead_bytes": 100_000_000,
+    }
+    second = {
+        "hash": "abc",
+        "download_speed": 0,
+        "cache_fill_percent": 100,
+        "buffer_ahead_bytes": 120_000_000,
+    }
+
+    tracker.apply((first,), now=0, window_seconds=15, cache_full_threshold=95)
+    tracker.apply((second,), now=5, window_seconds=15, cache_full_threshold=95)
+
+    assert second["cache_full"] is True
+    assert second["average_download_speed"] == 2_000_000
+    assert second["average_speed_source"] == "held_while_cache_full"
+    assert second["buffer_trend_bytes_per_second"] == 4_000_000
+    assert second["buffer_sample_count"] == 2

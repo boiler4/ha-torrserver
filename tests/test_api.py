@@ -179,6 +179,9 @@ async def test_client_enriches_torrent_with_reader_activity():
         FakeResponse(json_data=[{"title": "Example", "stat": 3, "hash": "abc"}]),
         FakeResponse(
             json_data={
+                "Capacity": 1_000_000_000,
+                "Filled": 960_000_000,
+                "PiecesLength": 4_000_000,
                 "Readers": [
                     {"Start": 0, "End": 32, "Reader": 0},
                     {"Start": 100, "End": 200, "Reader": 120},
@@ -194,6 +197,10 @@ async def test_client_enriches_torrent_with_reader_activity():
     assert data.torrents[0]["cache_stats_available"] is True
     assert data.torrents[0]["reader_count"] == 2
     assert data.torrents[0]["streaming_reader_count"] == 1
+    assert data.torrents[0]["cache_capacity_bytes"] == 1_000_000_000
+    assert data.torrents[0]["cache_filled_bytes"] == 960_000_000
+    assert data.torrents[0]["cache_fill_percent"] == 96
+    assert data.torrents[0]["buffer_ahead_bytes"] == 320_000_000
     assert session.request.call_count == 3
 
 
