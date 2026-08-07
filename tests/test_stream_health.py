@@ -105,6 +105,59 @@ def test_stream_health_uses_torrserver_bit_rate_when_available():
     assert health.attributes["speed_ratio"] == 1.1
 
 
+def test_stream_health_estimates_large_4k_movie_conservatively():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "title": "Star Trek 4K HEVC HDR (2160p)",
+            "torrent_size": 51 * 1024**3,
+            "connected_seeders": 1,
+            "active_peers": 1,
+            "download_speed": 850_000,
+            "preloaded_bytes": 160_000_000,
+        }
+    )
+
+    assert health.state == "red"
+    assert health.attributes["bit_rate_bps"] == 40_000_000
+    assert health.attributes["bit_rate_source"] == "auto_4k_large"
+    assert health.attributes["speed_ratio"] == 0.17
+
+
+def test_stream_health_prefers_size_and_duration_over_title_profile():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "title": "Compact 4K (2160p)",
+            "torrent_size": 9_000_000_000,
+            "duration_seconds": 7_200,
+            "connected_seeders": 3,
+            "active_peers": 4,
+            "download_speed": 1_600_000,
+        }
+    )
+
+    assert health.attributes["bit_rate_source"] == "size_and_duration"
+    assert health.attributes["bit_rate_bps"] == 10_000_000
+
+
+def test_torrserver_bit_rate_wins_over_automatic_4k_profile():
+    health = evaluate_stream_health(
+        {
+            "stat": 3,
+            "title": "Large 4K (2160p)",
+            "torrent_size": 60 * 1024**3,
+            "bit_rate": 18_000_000,
+            "connected_seeders": 3,
+            "active_peers": 4,
+            "download_speed": 2_500_000,
+        }
+    )
+
+    assert health.attributes["bit_rate_source"] == "torrserver"
+    assert health.attributes["bit_rate_bps"] == 18_000_000
+
+
 def test_multiple_streams_report_the_worst_state_and_counts():
     health = evaluate_streams_health(
         (

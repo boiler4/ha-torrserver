@@ -33,10 +33,34 @@ def _as_int(value: Any) -> int:
 
 
 def _bit_rate(torrent: Mapping[str, Any]) -> tuple[float, str]:
-    """Return a bit rate and whether TorrServer or the fallback supplied it."""
+    """Return the best available bitrate and explain where it came from."""
     bit_rate = _as_float(torrent.get("bit_rate"))
     if bit_rate > 0:
         return bit_rate, "torrserver"
+
+    torrent_size = _as_float(torrent.get("torrent_size"))
+    duration_seconds = _as_float(torrent.get("duration_seconds"))
+    if torrent_size > 0 and duration_seconds >= 300:
+        calculated_bit_rate = torrent_size * 8 / duration_seconds
+        if 500_000 <= calculated_bit_rate <= 200_000_000:
+            return calculated_bit_rate, "size_and_duration"
+
+    title = f"{torrent.get('title', '')} {torrent.get('name', '')}".casefold()
+    size_gib = torrent_size / (1024**3)
+    if "2160p" in title or "4k" in title:
+        if size_gib >= 40:
+            return 40_000_000.0, "auto_4k_large"
+        if size_gib >= 20:
+            return 25_000_000.0, "auto_4k_medium"
+        return 16_000_000.0, "auto_4k_compact"
+    if "1080p" in title:
+        if size_gib >= 20:
+            return 20_000_000.0, "auto_1080p_large"
+        if size_gib >= 8:
+            return 12_000_000.0, "auto_1080p_medium"
+        return 8_000_000.0, "auto_1080p_compact"
+    if "720p" in title:
+        return 6_000_000.0, "auto_720p"
     return float(DEFAULT_BIT_RATE_BPS), "fallback_8_mbps"
 
 
