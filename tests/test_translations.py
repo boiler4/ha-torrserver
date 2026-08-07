@@ -28,3 +28,16 @@ def test_translation_files_are_valid_and_have_matching_keys():
     expected = _leaf_keys(documents["en"])
     assert _leaf_keys(documents["it"]) == expected
     assert _leaf_keys(documents["ru"]) == expected
+
+
+def test_top_health_state_uses_good_labels_without_changing_raw_key():
+    documents = {
+        language: json.loads((TRANSLATIONS / f"{language}.json").read_text("utf-8"))
+        for language in ("en", "it", "ru")
+    }
+
+    expected = {"en": "Good", "it": "Buono", "ru": "Хорошо"}
+    for language, label in expected.items():
+        assert documents[language]["entity"]["sensor"]["stream_health"]["state"][
+            "protected"
+        ] == label

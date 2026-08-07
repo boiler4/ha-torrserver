@@ -63,7 +63,7 @@
           "stream_average_window": "Speed average window",
           "download_threshold_mbps": "Downloading threshold",
           "stream_low_buffer_seconds": "Low-buffer threshold",
-          "stream_protected_buffer_seconds": "Protected-buffer threshold",
+          "stream_protected_buffer_seconds": "Good-state buffer threshold",
           "stream_stable_margin": "Sustainable speed margin",
           "stream_preload_margin": "Preloading speed margin",
           "stream_downgrade_delay": "Health downgrade delay",
@@ -74,7 +74,7 @@
           "stream_average_window": "Seconds used for the rolling download-speed average. Must be at least the update interval. Recommended: 15 seconds.",
           "download_threshold_mbps": "Minimum TorrServer speed in Mbps used by the separate Downloading binary sensor.",
           "stream_low_buffer_seconds": "Below this many playable seconds the stream can become Insufficient if download cannot recover. Recommended: 15 seconds.",
-          "stream_protected_buffer_seconds": "At or above this many playable seconds the stream is Protected. Recommended: 60 seconds.",
+          "stream_protected_buffer_seconds": "At or above this many playable seconds the stream state is Good. Recommended: 60 seconds.",
           "stream_stable_margin": "Extra average speed above media bitrate considered sustainable when reader-buffer data is unavailable or low. Recommended: 0%.",
           "stream_preload_margin": "Extra average speed above bitrate that identifies active preloading. Must be greater than the sustainable margin. Recommended: 10%.",
           "stream_downgrade_delay": "How long a worse non-emergency condition must persist before the traffic light changes. Recommended: 15 seconds.",
@@ -84,7 +84,7 @@
     },
     "error": {
       "preload_margin_too_low": "The preloading margin must be greater than the sustainable margin.",
-      "protected_buffer_too_low": "The protected-buffer threshold must be greater than the low-buffer threshold.",
+      "protected_buffer_too_low": "The Good-state buffer threshold must be greater than the low-buffer threshold.",
       "average_window_too_short": "The average window must be at least as long as the update interval."
     }
   },
@@ -95,10 +95,10 @@
     "sensor": {
       "stream_average_speed": {"name": "Average streaming speed"},
       "stream_buffer_seconds": {"name": "Playable buffer"},
-      "stream_buffer_mode": {"name": "Buffer mode", "state": {"idle": "Idle", "full": "Protected buffer", "preloading": "Preloading", "stable": "Stable", "draining": "Draining", "recovering": "Recovering", "measuring": "Measuring", "unknown": "Unknown", "multiple": "Multiple modes"}},
+      "stream_buffer_mode": {"name": "Buffer mode", "state": {"idle": "Idle", "full": "Good buffer", "preloading": "Preloading", "stable": "Stable", "draining": "Draining", "recovering": "Recovering", "measuring": "Measuring", "unknown": "Unknown", "multiple": "Multiple modes"}},
       "download_speed": {"name": "Download speed"}, "upload_speed": {"name": "Upload speed"},
       "total_torrents": {"name": "Total torrents"}, "active_torrents": {"name": "Active torrents"}, "working_torrents": {"name": "Working torrents"},
-      "stream_health": {"name": "Streaming health", "state": {"idle": "Idle", "insufficient": "Insufficient", "stable": "Stable", "protected": "Protected", "measuring": "Measuring", "unknown": "Unknown"}},
+      "stream_health": {"name": "Streaming health", "state": {"idle": "Idle", "insufficient": "Insufficient", "stable": "Stable", "protected": "Good", "measuring": "Measuring", "unknown": "Unknown"}},
       "current_torrent": {"name": "Current torrent"}, "current_loaded_percent": {"name": "Current torrent loaded"}, "current_status": {"name": "Current status"},
       "added_torrents": {"name": "Added torrents"}, "getting_info_torrents": {"name": "Torrents getting info"}, "preloading_torrents": {"name": "Preloading torrents"}, "closed_torrents": {"name": "Closed torrents"}, "saved_torrents": {"name": "Saved torrents"},
       "loaded_size": {"name": "Loaded size"}, "torrent_size": {"name": "Torrent size"}, "preloaded_bytes": {"name": "Preloaded bytes"}, "preload_size": {"name": "Preload size"},

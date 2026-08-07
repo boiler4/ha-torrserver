@@ -55,14 +55,14 @@
         "description": "Configura aggiornamento e stima della salute streaming. L’analisi sperimentale del bitrate è in sola lettura e non modifica impostazioni o torrent.",
         "data": {
           "scan_interval": "Intervallo di aggiornamento", "stream_average_window": "Finestra media velocità", "download_threshold_mbps": "Soglia download attivo",
-          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer protetto", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
+          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer stato Buono", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
         },
         "data_description": {
           "scan_interval": "Ogni quanti secondi Home Assistant legge TorrServer. Un valore breve aggiorna prima ma genera più richieste locali.",
           "stream_average_window": "Secondi usati per la media mobile della velocità. Deve essere almeno pari all’intervallo di aggiornamento. Consigliato: 15 secondi.",
           "download_threshold_mbps": "Velocità minima di TorrServer in Mbps usata dal sensore binario separato Download in corso.",
           "stream_low_buffer_seconds": "Sotto questi secondi riproducibili lo stato può diventare Non sufficiente se il download non recupera. Consigliato: 15 secondi.",
-          "stream_protected_buffer_seconds": "Da questi secondi riproducibili in poi lo stato è Protetta. Consigliato: 60 secondi.",
+          "stream_protected_buffer_seconds": "Da questi secondi riproducibili in poi lo stato è Buono. Consigliato: 60 secondi.",
           "stream_stable_margin": "Velocità media aggiuntiva rispetto al bitrate considerata sostenibile quando il buffer del lettore non è disponibile o è basso. Consigliato: 0%.",
           "stream_preload_margin": "Velocità media aggiuntiva rispetto al bitrate che identifica il precaricamento. Deve superare il margine sostenibile. Consigliato: 10%.",
           "stream_downgrade_delay": "Tempo durante il quale una condizione peggiore non urgente deve persistere prima di cambiare il semaforo. Consigliato: 15 secondi.",
@@ -70,16 +70,16 @@
         }
       }
     },
-    "error": {"preload_margin_too_low": "Il margine di precaricamento deve essere maggiore del margine sostenibile.", "protected_buffer_too_low": "La soglia buffer protetto deve essere maggiore della soglia buffer basso.", "average_window_too_short": "La finestra media deve essere almeno pari all’intervallo di aggiornamento."}
+    "error": {"preload_margin_too_low": "Il margine di precaricamento deve essere maggiore del margine sostenibile.", "protected_buffer_too_low": "La soglia buffer dello stato Buono deve essere maggiore della soglia buffer basso.", "average_window_too_short": "La finestra media deve essere almeno pari all’intervallo di aggiornamento."}
   },
   "entity": {
     "binary_sensor": {"connected": {"name": "Connesso"}, "downloading": {"name": "Download in corso"}, "working": {"name": "In attività"}},
     "sensor": {
       "stream_average_speed": {"name": "Velocità media streaming"},
       "stream_buffer_seconds": {"name": "Buffer riproducibile"},
-      "stream_buffer_mode": {"name": "Modalità buffer", "state": {"idle": "Inattiva", "full": "Buffer protetto", "preloading": "Precaricamento", "stable": "Stabile", "draining": "In diminuzione", "recovering": "In recupero", "measuring": "Misurazione", "unknown": "Sconosciuta", "multiple": "Modalità multiple"}},
+      "stream_buffer_mode": {"name": "Modalità buffer", "state": {"idle": "Inattiva", "full": "Buffer buono", "preloading": "Precaricamento", "stable": "Stabile", "draining": "In diminuzione", "recovering": "In recupero", "measuring": "Misurazione", "unknown": "Sconosciuta", "multiple": "Modalità multiple"}},
       "download_speed": {"name": "Velocità download"}, "upload_speed": {"name": "Velocità upload"}, "total_torrents": {"name": "Torrent totali"}, "active_torrents": {"name": "Torrent attivi"}, "working_torrents": {"name": "Torrent in attività"},
-      "stream_health": {"name": "Salute streaming", "state": {"idle": "Inattiva", "insufficient": "Non sufficiente", "stable": "Stabile", "protected": "Protetta", "measuring": "Misurazione", "unknown": "Sconosciuta"}},
+      "stream_health": {"name": "Salute streaming", "state": {"idle": "Inattiva", "insufficient": "Non sufficiente", "stable": "Stabile", "protected": "Buono", "measuring": "Misurazione", "unknown": "Sconosciuta"}},
       "current_torrent": {"name": "Torrent corrente"}, "current_loaded_percent": {"name": "Torrent corrente caricato"}, "current_status": {"name": "Stato corrente"}, "added_torrents": {"name": "Torrent aggiunti"}, "getting_info_torrents": {"name": "Torrent in acquisizione informazioni"}, "preloading_torrents": {"name": "Torrent in precaricamento"}, "closed_torrents": {"name": "Torrent chiusi"}, "saved_torrents": {"name": "Torrent salvati"},
       "loaded_size": {"name": "Dimensione caricata"}, "torrent_size": {"name": "Dimensione torrent"}, "preloaded_bytes": {"name": "Byte precaricati"}, "preload_size": {"name": "Dimensione precaricamento"}, "total_peers": {"name": "Peer totali"}, "pending_peers": {"name": "Peer in attesa"}, "active_peers": {"name": "Peer attivi"}, "connected_seeders": {"name": "Seeder connessi"}, "half_open_peers": {"name": "Peer semiaperti"},
       "bytes_written": {"name": "Byte scritti"}, "bytes_written_data": {"name": "Byte dati scritti"}, "bytes_read": {"name": "Byte letti"}, "bytes_read_data": {"name": "Byte dati letti"}, "bytes_read_useful_data": {"name": "Byte utili letti"}, "chunks_written": {"name": "Chunk scritti"}, "chunks_read": {"name": "Chunk letti"}, "chunks_read_useful": {"name": "Chunk utili letti"}, "chunks_read_wasted": {"name": "Chunk sprecati"}, "pieces_dirtied_good": {"name": "Parti valide elaborate"}, "pieces_dirtied_bad": {"name": "Parti non valide elaborate"}, "duration_seconds": {"name": "Durata attività"}, "current_bit_rate": {"name": "Bitrate corrente"}

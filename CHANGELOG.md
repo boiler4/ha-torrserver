@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0-beta.4
+
+- Display the top `protected` health state as Good, Buono, or Хорошо while
+  preserving the raw state for history and automation compatibility.
+- Rename the related buffer labels and option descriptions consistently.
+- Use blue for the Good state in the native traffic-light dashboard example.
+
 ## 0.3.0-beta.3
 
 - Calculate playable buffer only from consecutive `/cache` pieces marked

@@ -6,7 +6,7 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-> `0.3.0-beta.3` è una versione di test e rimane sulla branch beta fino alla
+> `0.3.0-beta.4` è una versione di test e rimane sulla branch beta fino alla
 > conclusione delle verifiche.
 
 ## Funzioni principali
@@ -15,7 +15,7 @@ Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 - Autenticazione Basic, HTTPS e certificati autofirmati.
 - Velocità download/upload, media streaming sensibile alla cache, bitrate,
   torrent/riproduzioni attive, peer, seed e diagnostica completa.
-- Salute streaming nativa: `protected` (Protetta), `stable` (Stabile),
+- Salute streaming nativa: `protected` (Buono), `stable` (Stabile),
   `insufficient` (Non sufficiente), `measuring`, `idle` e `unknown`.
 - Secondi di buffer riproducibile, soglie, margini e ritardo configurabili.
 - Analisi sperimentale del bitrate reale tramite `/ffp` di TorrServer.
@@ -56,7 +56,8 @@ calcolati contando i `Pieces` consecutivi marcati `Completed` da `/cache` fino
 al primo buco e convertendoli con il bitrate. Il pezzo corrente viene escluso
 perché TorrServer non espone l'offset esatto del lettore al suo interno:
 
-- **Protetta** con almeno 60 secondi consecutivi o file completo;
+- **Buono** (stato tecnico `protected`) con almeno 60 secondi consecutivi o file
+  completo;
 - **Stabile** con almeno 15 secondi oppure buffer basso che riesce a recuperare;
 - **Non sufficiente** sotto 15 secondi quando velocità e andamento del buffer
   non riescono a sostenere la riproduzione;
@@ -64,8 +65,8 @@ perché TorrServer non espone l'offset esatto del lettore al suo interno:
 
 La modalità buffer è separata: `full`, `preloading`, `stable`, `draining`,
 `recovering` o `unknown`. `full` indica che il buffer consecutivo ha raggiunto
-la soglia Protetta; l'occupazione della cache è solo diagnostica e non rende più
-lo stato Protetto da sola. Le impostazioni predefinite sono 15/60 secondi, margini
+la soglia Buono; l'occupazione della cache è solo diagnostica e non rende più
+lo stato Buono da sola. Le impostazioni predefinite sono 15/60 secondi, margini
 velocità 0%/10%, media 15 secondi e ritardo di peggioramento 15 secondi. Tutti
 questi valori sono modificabili. Sotto 5 secondi o senza sorgenti utilizzabili
 lo stato peggiora immediatamente.
@@ -78,7 +79,7 @@ seed, motivazione e transizione pendente.
 
 Non servono card HACS aggiuntive. Usa l’esempio YAML completo nel
 [README inglese](README.md#native-traffic-light-dashboard): tre Tile condizionali
-con `mdi:traffic-light` e colori verde, ambra e rosso. L’ID dell’entità rimane
+con `mdi:traffic-light` e colori blu, giallo e rosso. L'ID dell'entità rimane
 stabile; gli stati beta passano dai vecchi colori ai nuovi nomi semantici.
 
 ## Bitrate sperimentale e `ffprobe`

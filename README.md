@@ -10,7 +10,7 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-> `0.3.0-beta.3` is a test release. Keep it on the beta branch until the new
+> `0.3.0-beta.4` is a test release. Keep it on the beta branch until the new
 > discovery and streaming-health logic has been validated.
 
 ## Highlights
@@ -19,7 +19,7 @@ remove, stop, or modify torrents or TorrServer settings.
 - HTTP Basic authentication, HTTPS, and self-signed certificate support.
 - Download/upload speed, playable buffer in seconds, average streaming speed,
   torrent counts, active playback, peers, seeders, cache and I/O statistics.
-- Native streaming-health states: `protected`, `stable`, `insufficient`,
+- Native streaming-health states: `protected` (Good), `stable`, `insufficient`,
   `measuring`, `idle`, and `unknown`.
 - Configurable polling, averaging window, buffer thresholds, speed margins,
   and downgrade delay.
@@ -68,7 +68,8 @@ the first missing piece, and converted to seconds using the detected media
 bitrate. The current reader piece is excluded because TorrServer does not expose
 the byte offset inside that piece:
 
-- **Protected**: at least 60 playable seconds or a completely loaded file.
+- **Good** (raw state `protected`): at least 60 playable seconds or a completely
+  loaded file.
 - **Stable**: at least 15 playable seconds, or a low buffer whose download can
   sustain and recover playback.
 - **Insufficient**: fewer than 15 playable seconds while speed and buffer trend
@@ -78,10 +79,10 @@ the byte offset inside that piece:
 
 The buffer mode is exposed separately as `full`, `preloading`, `stable`,
 `draining`, `recovering`, or `unknown`. `full` means that the consecutive
-playable buffer reached the Protected threshold; TorrServer cache occupancy is
-diagnostic only and never makes a stream Protected by itself.
+playable buffer reached the Good threshold; TorrServer cache occupancy is
+diagnostic only and never makes a stream Good by itself.
 
-Defaults are 15 seconds for low buffer, 60 seconds for Protected, 0% sustainable
+Defaults are 15 seconds for low buffer, 60 seconds for Good, 0% sustainable
 speed margin, 10% preloading margin, a 15-second average, and a 15-second
 non-emergency downgrade delay. All are configurable. Emergency conditions at
 five seconds or no usable sources are applied immediately.
@@ -109,7 +110,7 @@ cards:
       entity: sensor.torrserver_stream_health
       name: Streaming health
       icon: mdi:traffic-light
-      color: green
+      color: blue
   - type: conditional
     conditions:
       - condition: state
