@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.3.0
+
+- Promote the tested streaming-health implementation to the first public stable
+  release of the new monitoring model.
+- Add bounded local discovery with manual configuration, authentication, HTTPS,
+  and self-signed certificate support.
+- Calculate streaming health from consecutive playable cache data, real media
+  bitrate when available, rolling speed, and buffer trend.
+- Add configurable buffer thresholds, speed margins, averaging window, polling
+  interval, and downgrade hysteresis.
+- Expose streaming speed, bitrate, playable buffer, health, torrent activity,
+  cache, peer, seeder, I/O, diagnostics, and System Health data.
+- Add Italian, English, and Russian configuration text, Repairs, issue forms,
+  local branding, and native dashboard examples.
+
 ## 0.3.0-beta.4
 
 - Display the top `protected` health state as Good, Buono, or Хорошо while

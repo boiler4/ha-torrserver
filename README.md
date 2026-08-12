@@ -10,8 +10,7 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-> `0.3.0-beta.4` is a test release. Keep it on the beta branch until the new
-> discovery and streaming-health logic has been validated.
+The current stable release is `0.3.0`.
 
 ## Highlights
 
@@ -38,8 +37,9 @@ Until the repository is included in the default HACS catalog:
 4. Install **TorrServer**, restart Home Assistant, and add the integration from
    **Settings → Devices & services**.
 
-For beta testing, select the beta release explicitly. No stable release is
-created until testing is complete.
+The stable release is selected automatically. Until catalog inclusion is
+approved, the repository remains fully installable through HACS as a custom
+repository.
 
 ## Configuration and discovery
 

@@ -6,8 +6,7 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-> `0.3.0-beta.4` è una versione di test e rimane sulla branch beta fino alla
-> conclusione delle verifiche.
+La versione stabile corrente è `0.3.0`.
 
 ## Funzioni principali
 
@@ -30,7 +29,9 @@ Finché il repository non è nel catalogo HACS predefinito:
 3. Installa TorrServer, riavvia Home Assistant e aggiungi l’integrazione da
    **Impostazioni → Dispositivi e servizi**.
 
-Durante i test seleziona esplicitamente la versione beta.
+La versione stabile viene selezionata automaticamente. In attesa
+dell'approvazione nel catalogo, il repository rimane installabile normalmente
+da HACS come repository personalizzato.
 
 ## Ricerca e autenticazione
 
@@ -80,7 +81,7 @@ seed, motivazione e transizione pendente.
 Non servono card HACS aggiuntive. Usa l’esempio YAML completo nel
 [README inglese](README.md#native-traffic-light-dashboard): tre Tile condizionali
 con `mdi:traffic-light` e colori blu, giallo e rosso. L'ID dell'entità rimane
-stabile; gli stati beta passano dai vecchi colori ai nuovi nomi semantici.
+stabile; dalla versione 0.3.0 i vecchi stati colore usano nomi semantici.
 
 ## Bitrate sperimentale e `ffprobe`
 
