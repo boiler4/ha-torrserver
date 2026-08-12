@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.0-beta.1
+
+- Add a read-only streaming-continuity forecast based on measured consecutive
+  playable buffer and its rolling trend.
+- Expose an estimated time to interruption only while the playable buffer is
+  measurably depleting; no ETA is invented for stable or growing buffers.
+- Add a configurable interruption-risk horizon and confirmation time, with an
+  immediate emergency response at five playable seconds or less.
+- Add a native interruption-risk binary sensor and streaming speed-margin
+  sensor for dashboards, notifications, and automations.
+- Rename the existing playable-buffer entity to Streaming autonomy without
+  changing its entity identity or underlying value.
+- Keep per-reader session summaries in memory: minimum buffer, average speed,
+  time spent Insufficient, duration, and confirmed risk-event count.
+- Aggregate simultaneous streams conservatively by exposing the worst forecast,
+  minimum ETA, minimum speed margin, and number of streams at risk.
+
 ## 0.3.0
 
 - Promote the tested streaming-health implementation to the first public stable

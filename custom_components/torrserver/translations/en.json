@@ -67,6 +67,8 @@
           "stream_stable_margin": "Sustainable speed margin",
           "stream_preload_margin": "Preloading speed margin",
           "stream_downgrade_delay": "Health downgrade delay",
+          "stream_risk_horizon": "Interruption-risk horizon",
+          "stream_risk_confirmation": "Risk confirmation time",
           "experimental_ffprobe": "Experimental: exact media bitrate analysis"
         },
         "data_description": {
@@ -78,6 +80,8 @@
           "stream_stable_margin": "Extra average speed above media bitrate considered sustainable when reader-buffer data is unavailable or low. Recommended: 0%.",
           "stream_preload_margin": "Extra average speed above bitrate that identifies active preloading. Must be greater than the sustainable margin. Recommended: 10%.",
           "stream_downgrade_delay": "How long a worse non-emergency condition must persist before the traffic light changes. Recommended: 15 seconds.",
+          "stream_risk_horizon": "Raise the risk indicator when measured buffer depletion predicts an interruption within this time. Recommended: 60 seconds.",
+          "stream_risk_confirmation": "How long a predicted risk must persist before the binary sensor turns on. Emergencies at five seconds or less are immediate. Recommended: 15 seconds.",
           "experimental_ffprobe": "Uses TorrServer's /ffp endpoint once per streamed file and caches the result in memory. The ffprobe executable must be available to TorrServer; otherwise the integration uses an estimate."
         }
       }
@@ -90,12 +94,19 @@
   },
   "entity": {
     "binary_sensor": {
-      "connected": {"name": "Connected"}, "downloading": {"name": "Downloading"}, "working": {"name": "Working"}
+      "connected": {"name": "Connected"}, "downloading": {"name": "Downloading"}, "working": {"name": "Working"}, "stream_interruption_risk": {"name": "Streaming interruption risk"}
     },
     "sensor": {
       "stream_average_speed": {"name": "Average streaming speed"},
-      "stream_buffer_seconds": {"name": "Playable buffer"},
+      "stream_buffer_seconds": {"name": "Streaming autonomy"},
       "stream_buffer_mode": {"name": "Buffer mode", "state": {"idle": "Idle", "full": "Good buffer", "preloading": "Preloading", "stable": "Stable", "draining": "Draining", "recovering": "Recovering", "measuring": "Measuring", "unknown": "Unknown", "multiple": "Multiple modes"}},
+      "stream_forecast": {"name": "Streaming continuity forecast", "state": {"idle": "Idle", "sustainable": "Sustainable", "depleting": "Buffer depleting", "at_risk": "Interruption risk", "measuring": "Measuring", "unknown": "Unknown"}},
+      "stream_interruption_eta": {"name": "Estimated time to interruption"},
+      "stream_speed_margin": {"name": "Streaming speed margin"},
+      "stream_session_minimum_buffer": {"name": "Session minimum buffer"},
+      "stream_session_average_speed": {"name": "Session average speed"},
+      "stream_session_insufficient_time": {"name": "Session insufficient time"},
+      "stream_session_risk_events": {"name": "Session risk events"},
       "download_speed": {"name": "Download speed"}, "upload_speed": {"name": "Upload speed"},
       "total_torrents": {"name": "Total torrents"}, "active_torrents": {"name": "Active torrents"}, "working_torrents": {"name": "Working torrents"},
       "stream_health": {"name": "Streaming health", "state": {"idle": "Idle", "insufficient": "Insufficient", "stable": "Stable", "protected": "Good", "measuring": "Measuring", "unknown": "Unknown"}},

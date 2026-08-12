@@ -32,6 +32,7 @@ async def async_setup_entry(
             TorrServerConnectedBinarySensor(entry),
             TorrServerDownloadingBinarySensor(entry),
             TorrServerWorkingBinarySensor(entry),
+            TorrServerStreamInterruptionRiskBinarySensor(entry),
         )
     )
 
@@ -130,3 +131,46 @@ class TorrServerWorkingBinarySensor(TorrServerBinarySensor):
     def is_on(self) -> bool:
         """Return whether TorrServer has a torrent in the working state."""
         return self.coordinator.data.count_state(TORRENT_WORKING) > 0
+
+
+class TorrServerStreamInterruptionRiskBinarySensor(TorrServerBinarySensor):
+    """Show a confirmed risk of interruption for any active stream."""
+
+    def __init__(self, entry: TorrServerConfigEntry) -> None:
+        """Initialize the interruption-risk sensor."""
+        super().__init__(
+            entry,
+            BinarySensorEntityDescription(
+                key="stream_interruption_risk",
+                translation_key="stream_interruption_risk",
+                device_class=BinarySensorDeviceClass.PROBLEM,
+            ),
+        )
+
+    @property
+    def is_on(self) -> bool:
+        """Return whether any active reader has a confirmed interruption risk."""
+        return any(
+            bool(torrent.get("stream_interruption_risk"))
+            for torrent in self.coordinator.data.streaming_torrents
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        """Expose only aggregate, explainable risk details."""
+        streams = self.coordinator.data.streaming_torrents
+        eta_values = [
+            float(torrent["stream_interruption_eta_seconds"])
+            for torrent in streams
+            if torrent.get("stream_interruption_eta_seconds") is not None
+        ]
+        return {
+            "stream_count": len(streams),
+            "at_risk_streams": sum(
+                bool(torrent.get("stream_interruption_risk"))
+                for torrent in streams
+            ),
+            "minimum_eta_seconds": min(eta_values) if eta_values else None,
+            "risk_horizon_seconds": self.coordinator.stream_risk_horizon,
+            "confirmation_seconds": self.coordinator.stream_risk_confirmation,
+        }

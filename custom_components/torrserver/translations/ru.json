@@ -55,7 +55,7 @@
         "description": "Настройте опрос и оценку здоровья потока. Экспериментальный анализ битрейта работает только на чтение и не изменяет настройки или торренты.",
         "data": {
           "scan_interval": "Интервал обновления", "stream_average_window": "Окно средней скорости", "download_threshold_mbps": "Порог активной загрузки",
-          "stream_low_buffer_seconds": "Порог малого буфера", "stream_protected_buffer_seconds": "Порог буфера для состояния «Хорошо»", "stream_stable_margin": "Запас устойчивой скорости", "stream_preload_margin": "Запас скорости предзагрузки", "stream_downgrade_delay": "Задержка ухудшения состояния", "experimental_ffprobe": "Экспериментально: точный анализ битрейта файла"
+          "stream_low_buffer_seconds": "Порог малого буфера", "stream_protected_buffer_seconds": "Порог буфера для состояния «Хорошо»", "stream_stable_margin": "Запас устойчивой скорости", "stream_preload_margin": "Запас скорости предзагрузки", "stream_downgrade_delay": "Задержка ухудшения состояния", "stream_risk_horizon": "Горизонт риска прерывания", "stream_risk_confirmation": "Время подтверждения риска", "experimental_ffprobe": "Экспериментально: точный анализ битрейта файла"
         },
         "data_description": {
           "scan_interval": "Как часто Home Assistant читает TorrServer. Короткий интервал быстрее обновляет данные, но создаёт больше локальных запросов.",
@@ -66,6 +66,8 @@
           "stream_stable_margin": "Дополнительная средняя скорость сверх битрейта, считающаяся устойчивой при недоступном или малом буфере. Рекомендуется: 0%.",
           "stream_preload_margin": "Дополнительная средняя скорость сверх битрейта, обозначающая предзагрузку. Должна быть выше устойчивого запаса. Рекомендуется: 10%.",
           "stream_downgrade_delay": "Сколько должна длиться неаварийная худшая ситуация до смены состояния светофора. Рекомендуется: 15 секунд.",
+          "stream_risk_horizon": "Включает индикатор риска, когда измеренное уменьшение буфера предсказывает прерывание в течение этого времени. Рекомендуется: 60 секунд.",
+          "stream_risk_confirmation": "Сколько должен сохраняться прогнозируемый риск до включения бинарного датчика. Аварийные пять секунд или меньше применяются сразу. Рекомендуется: 15 секунд.",
           "experimental_ffprobe": "Использует endpoint /ffp TorrServer один раз для каждого воспроизводимого файла и хранит результат в памяти. Исполняемый файл ffprobe должен быть доступен TorrServer; иначе применяется оценка."
         }
       }
@@ -73,11 +75,18 @@
     "error": {"preload_margin_too_low": "Запас предзагрузки должен быть выше устойчивого запаса.", "protected_buffer_too_low": "Порог буфера для состояния «Хорошо» должен быть выше порога малого буфера.", "average_window_too_short": "Окно средней скорости должно быть не короче интервала обновления."}
   },
   "entity": {
-    "binary_sensor": {"connected": {"name": "Подключено"}, "downloading": {"name": "Загрузка"}, "working": {"name": "Работает"}},
+    "binary_sensor": {"connected": {"name": "Подключено"}, "downloading": {"name": "Загрузка"}, "working": {"name": "Работает"}, "stream_interruption_risk": {"name": "Риск прерывания потока"}},
     "sensor": {
       "stream_average_speed": {"name": "Средняя скорость потока"},
-      "stream_buffer_seconds": {"name": "Буфер воспроизведения"},
+      "stream_buffer_seconds": {"name": "Автономность потока"},
       "stream_buffer_mode": {"name": "Режим буфера", "state": {"idle": "Неактивно", "full": "Хороший буфер", "preloading": "Предзагрузка", "stable": "Стабильно", "draining": "Уменьшается", "recovering": "Восстановление", "measuring": "Измерение", "unknown": "Неизвестно", "multiple": "Несколько режимов"}},
+      "stream_forecast": {"name": "Прогноз непрерывности потока", "state": {"idle": "Неактивно", "sustainable": "Устойчиво", "depleting": "Буфер уменьшается", "at_risk": "Риск прерывания", "measuring": "Измерение", "unknown": "Неизвестно"}},
+      "stream_interruption_eta": {"name": "Расчётное время до прерывания"},
+      "stream_speed_margin": {"name": "Запас скорости потока"},
+      "stream_session_minimum_buffer": {"name": "Минимальный буфер сеанса"},
+      "stream_session_average_speed": {"name": "Средняя скорость сеанса"},
+      "stream_session_insufficient_time": {"name": "Время недостаточного состояния"},
+      "stream_session_risk_events": {"name": "События риска сеанса"},
       "download_speed": {"name": "Скорость загрузки"}, "upload_speed": {"name": "Скорость отдачи"}, "total_torrents": {"name": "Всего торрентов"}, "active_torrents": {"name": "Активные торренты"}, "working_torrents": {"name": "Работающие торренты"},
       "stream_health": {"name": "Здоровье потока", "state": {"idle": "Неактивно", "insufficient": "Недостаточно", "stable": "Стабильно", "protected": "Хорошо", "measuring": "Измерение", "unknown": "Неизвестно"}},
       "current_torrent": {"name": "Текущий торрент"}, "current_loaded_percent": {"name": "Загружено текущего торрента"}, "current_status": {"name": "Текущее состояние"}, "added_torrents": {"name": "Добавленные торренты"}, "getting_info_torrents": {"name": "Получение сведений"}, "preloading_torrents": {"name": "Предзагрузка"}, "closed_torrents": {"name": "Закрытые торренты"}, "saved_torrents": {"name": "Сохранённые торренты"},

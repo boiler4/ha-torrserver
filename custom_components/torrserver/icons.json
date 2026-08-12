@@ -11,6 +11,17 @@
           "measuring": "mdi:timer-sand",
           "unknown": "mdi:help-circle-outline"
         }
+      },
+      "stream_forecast": {
+        "default": "mdi:progress-question",
+        "state": {
+          "idle": "mdi:minus-circle-outline",
+          "sustainable": "mdi:play-circle-outline",
+          "depleting": "mdi:timer-sand",
+          "at_risk": "mdi:progress-alert",
+          "measuring": "mdi:chart-timeline-variant-shimmer",
+          "unknown": "mdi:help-circle-outline"
+        }
       }
     }
   }

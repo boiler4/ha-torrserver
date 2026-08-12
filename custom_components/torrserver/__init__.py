@@ -16,6 +16,8 @@ from .const import (
     CONF_STREAM_LOW_BUFFER_SECONDS,
     CONF_STREAM_PRELOAD_MARGIN,
     CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+    CONF_STREAM_RISK_CONFIRMATION,
+    CONF_STREAM_RISK_HORIZON,
     CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -26,6 +28,8 @@ from .const import (
     DEFAULT_STREAM_LOW_BUFFER_SECONDS,
     DEFAULT_STREAM_PRELOAD_MARGIN,
     DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+    DEFAULT_STREAM_RISK_CONFIRMATION,
+    DEFAULT_STREAM_RISK_HORIZON,
     DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_VERIFY_SSL,
 )
@@ -80,6 +84,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: TorrServerConfigEntry) -
         float(
             entry.options.get(
                 CONF_STREAM_DOWNGRADE_DELAY, DEFAULT_STREAM_DOWNGRADE_DELAY
+            )
+        ),
+        float(
+            entry.options.get(
+                CONF_STREAM_RISK_HORIZON, DEFAULT_STREAM_RISK_HORIZON
+            )
+        ),
+        float(
+            entry.options.get(
+                CONF_STREAM_RISK_CONFIRMATION, DEFAULT_STREAM_RISK_CONFIRMATION
             )
         ),
         entry.entry_id,

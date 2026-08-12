@@ -55,7 +55,7 @@
         "description": "Configura aggiornamento e stima della salute streaming. L’analisi sperimentale del bitrate è in sola lettura e non modifica impostazioni o torrent.",
         "data": {
           "scan_interval": "Intervallo di aggiornamento", "stream_average_window": "Finestra media velocità", "download_threshold_mbps": "Soglia download attivo",
-          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer stato Buono", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
+          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer stato Buono", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "stream_risk_horizon": "Orizzonte rischio interruzione", "stream_risk_confirmation": "Tempo conferma rischio", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
         },
         "data_description": {
           "scan_interval": "Ogni quanti secondi Home Assistant legge TorrServer. Un valore breve aggiorna prima ma genera più richieste locali.",
@@ -66,6 +66,8 @@
           "stream_stable_margin": "Velocità media aggiuntiva rispetto al bitrate considerata sostenibile quando il buffer del lettore non è disponibile o è basso. Consigliato: 0%.",
           "stream_preload_margin": "Velocità media aggiuntiva rispetto al bitrate che identifica il precaricamento. Deve superare il margine sostenibile. Consigliato: 10%.",
           "stream_downgrade_delay": "Tempo durante il quale una condizione peggiore non urgente deve persistere prima di cambiare il semaforo. Consigliato: 15 secondi.",
+          "stream_risk_horizon": "Attiva l'indicatore di rischio quando la diminuzione misurata del buffer prevede un'interruzione entro questo tempo. Consigliato: 60 secondi.",
+          "stream_risk_confirmation": "Tempo durante il quale il rischio previsto deve persistere prima di attivare il sensore binario. Le emergenze con cinque secondi o meno sono immediate. Consigliato: 15 secondi.",
           "experimental_ffprobe": "Usa l’endpoint /ffp di TorrServer una volta per file riprodotto e conserva il risultato in memoria. L’eseguibile ffprobe deve essere disponibile a TorrServer; altrimenti viene usata una stima."
         }
       }
@@ -73,11 +75,18 @@
     "error": {"preload_margin_too_low": "Il margine di precaricamento deve essere maggiore del margine sostenibile.", "protected_buffer_too_low": "La soglia buffer dello stato Buono deve essere maggiore della soglia buffer basso.", "average_window_too_short": "La finestra media deve essere almeno pari all’intervallo di aggiornamento."}
   },
   "entity": {
-    "binary_sensor": {"connected": {"name": "Connesso"}, "downloading": {"name": "Download in corso"}, "working": {"name": "In attività"}},
+    "binary_sensor": {"connected": {"name": "Connesso"}, "downloading": {"name": "Download in corso"}, "working": {"name": "In attività"}, "stream_interruption_risk": {"name": "Rischio interruzione streaming"}},
     "sensor": {
       "stream_average_speed": {"name": "Velocità media streaming"},
-      "stream_buffer_seconds": {"name": "Buffer riproducibile"},
+      "stream_buffer_seconds": {"name": "Autonomia streaming"},
       "stream_buffer_mode": {"name": "Modalità buffer", "state": {"idle": "Inattiva", "full": "Buffer buono", "preloading": "Precaricamento", "stable": "Stabile", "draining": "In diminuzione", "recovering": "In recupero", "measuring": "Misurazione", "unknown": "Sconosciuta", "multiple": "Modalità multiple"}},
+      "stream_forecast": {"name": "Previsione continuità streaming", "state": {"idle": "Inattiva", "sustainable": "Sostenibile", "depleting": "Buffer in esaurimento", "at_risk": "Rischio interruzione", "measuring": "Misurazione", "unknown": "Sconosciuta"}},
+      "stream_interruption_eta": {"name": "Tempo stimato all'interruzione"},
+      "stream_speed_margin": {"name": "Margine velocità streaming"},
+      "stream_session_minimum_buffer": {"name": "Buffer minimo sessione"},
+      "stream_session_average_speed": {"name": "Velocità media sessione"},
+      "stream_session_insufficient_time": {"name": "Tempo insufficiente sessione"},
+      "stream_session_risk_events": {"name": "Eventi di rischio sessione"},
       "download_speed": {"name": "Velocità download"}, "upload_speed": {"name": "Velocità upload"}, "total_torrents": {"name": "Torrent totali"}, "active_torrents": {"name": "Torrent attivi"}, "working_torrents": {"name": "Torrent in attività"},
       "stream_health": {"name": "Salute streaming", "state": {"idle": "Inattiva", "insufficient": "Non sufficiente", "stable": "Stabile", "protected": "Buono", "measuring": "Misurazione", "unknown": "Sconosciuta"}},
       "current_torrent": {"name": "Torrent corrente"}, "current_loaded_percent": {"name": "Torrent corrente caricato"}, "current_status": {"name": "Stato corrente"}, "added_torrents": {"name": "Torrent aggiunti"}, "getting_info_torrents": {"name": "Torrent in acquisizione informazioni"}, "preloading_torrents": {"name": "Torrent in precaricamento"}, "closed_torrents": {"name": "Torrent chiusi"}, "saved_torrents": {"name": "Torrent salvati"},

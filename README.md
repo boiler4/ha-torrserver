@@ -10,7 +10,8 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-The current stable release is `0.3.0`.
+The current stable release is `0.3.0`. `0.4.0-beta.1` is an optional
+pre-release for testing streaming autonomy and interruption forecasting.
 
 ## Highlights
 
@@ -26,6 +27,8 @@ The current stable release is `0.3.0`.
 - English, Italian, and Russian user interface.
 - Privacy-conscious diagnostics, System Health, Repairs, and GitHub Issue Forms.
 - Multiple TorrServer instances and multiple simultaneous streams.
+- Measured streaming autonomy, speed margin, interruption ETA, confirmed risk,
+  and an in-memory playback-session summary.
 
 ## Installation with HACS
 
@@ -91,6 +94,30 @@ This is an explainable estimate, not a player guarantee. Attributes expose
 playable seconds, buffer mode and trend, instantaneous/average Mbps, bitrate,
 thresholds, cache occupancy, consecutive completed pieces, samples, peers,
 seeders, reason, pending transition, and bitrate source.
+
+## Streaming autonomy and interruption forecast (beta)
+
+**Streaming autonomy** is the existing consecutive playable buffer expressed in
+seconds. The continuity forecast uses its rolling trend as the primary signal:
+
+- **Sustainable**: the measured playable buffer is stable or growing;
+- **Buffer depleting**: the buffer is shrinking and a time-to-empty estimate can
+  be calculated;
+- **Interruption risk**: the estimated time-to-empty is inside the configured
+  risk horizon and remains there for the confirmation time;
+- **Measuring/Unknown**: there is not enough real reader-buffer information.
+
+No ETA is exposed while the buffer is stable or growing. The default risk
+horizon is 60 seconds and confirmation time is 15 seconds; both are configurable.
+At five playable seconds or less the risk is immediate. With simultaneous
+streams the worst forecast and minimum ETA are exposed.
+
+The `Streaming interruption risk` binary sensor can trigger a native Home
+Assistant notification or automation. Session attributes include minimum
+buffer, average speed, seconds spent Insufficient, duration, and risk events.
+They live only in Home Assistant memory and reset when playback ends or Home
+Assistant restarts. The forecast estimates TorrServer-side risk; it cannot prove
+that a separate player actually displayed a buffering screen.
 
 ## Native traffic-light dashboard
 
@@ -181,13 +208,14 @@ server-administration steps and are never performed by this integration.
 ## Entities and units
 
 Default entities include connectivity, download activity, TorrServer working
-state, instantaneous download/upload speed, average streaming speed, playable
-buffer seconds, torrent counts, streaming health, current torrent, loaded
-percentage, and current bitrate. All exposed speeds and bitrates use Mbps.
+state, instantaneous download/upload speed, average streaming speed, streaming
+autonomy, continuity forecast, interruption ETA and risk, speed margin, torrent
+counts, streaming health, current torrent, loaded percentage, and current
+bitrate. All exposed speeds and bitrates use Mbps.
 
-Lower-level status, peer, cache, byte, chunk, piece, preload, and duration
-entities are created disabled by default. Enable only the data you need to avoid
-unnecessary recorder history.
+Lower-level status, peer, cache, byte, chunk, piece, preload, duration, and
+session-summary entities are created disabled by default. Enable only the data
+you need to avoid unnecessary recorder history.
 
 ## Diagnostics and bug reports
 

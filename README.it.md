@@ -6,7 +6,8 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-La versione stabile corrente è `0.3.0`.
+La versione stabile corrente è `0.3.0`. `0.4.0-beta.1` è una prerelease
+facoltativa per provare autonomia e previsione delle interruzioni.
 
 ## Funzioni principali
 
@@ -82,6 +83,25 @@ Non servono card HACS aggiuntive. Usa l’esempio YAML completo nel
 [README inglese](README.md#native-traffic-light-dashboard): tre Tile condizionali
 con `mdi:traffic-light` e colori blu, giallo e rosso. L'ID dell'entità rimane
 stabile; dalla versione 0.3.0 i vecchi stati colore usano nomi semantici.
+
+## Autonomia e previsione interruzione (beta)
+
+**Autonomia streaming** indica i secondi consecutivi realmente riproducibili
+davanti al lettore. La nuova previsione mostra `Sostenibile`, `Buffer in
+esaurimento`, `Rischio interruzione`, `Misurazione` o `Sconosciuta`. Il tempo
+stimato all'interruzione compare soltanto quando il buffer misurato diminuisce;
+non viene inventato se è stabile o cresce.
+
+Per impostazione predefinita il rischio viene candidato entro 60 secondi e deve
+persistere 15 secondi; entrambe le soglie sono modificabili. Sotto cinque secondi
+il rischio è immediato. Il sensore binario **Rischio interruzione streaming** è
+utilizzabile in notifiche e automazioni native.
+
+Il riepilogo della sessione contiene buffer minimo, velocità media, tempo nello
+stato Non sufficiente, durata ed eventi di rischio. Rimane soltanto nella memoria
+di Home Assistant e si azzera alla fine della riproduzione o al riavvio. È una
+previsione del rischio lato TorrServer, non la conferma che il player abbia
+mostrato una schermata di buffering.
 
 ## Bitrate sperimentale e `ffprobe`
 

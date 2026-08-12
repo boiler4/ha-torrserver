@@ -33,6 +33,12 @@ from .const import (
     TORRENT_WORKING,
 )
 from .entity import TorrServerEntity
+from .stream_forecast import (
+    STREAM_FORECAST_OPTIONS,
+    StreamForecast,
+    evaluate_streams_forecast,
+    stream_forecast_icon,
+)
 from .stream_health import (
     STREAM_BUFFER_MODE_OPTIONS,
     STREAM_HEALTH_OPTIONS,
@@ -114,6 +120,35 @@ def _stream_buffer_mode(data: TorrServerData) -> str:
     if len(modes) > 1:
         return "multiple"
     return modes.pop()
+
+
+def _stream_annotation_values(data: TorrServerData, key: str) -> list[float]:
+    """Return numeric forecast annotations for active streams."""
+    values: list[float] = []
+    for torrent in data.streaming_torrents:
+        value = torrent.get(key)
+        if value is None:
+            continue
+        try:
+            values.append(float(value))
+        except (TypeError, ValueError):
+            continue
+    return values
+
+
+def _stream_minimum(data: TorrServerData, key: str) -> float | None:
+    values = _stream_annotation_values(data, key)
+    return round(min(values), 1) if values else None
+
+
+def _stream_maximum(data: TorrServerData, key: str) -> float | None:
+    values = _stream_annotation_values(data, key)
+    return round(max(values), 1) if values else None
+
+
+def _stream_total(data: TorrServerData, key: str) -> float | None:
+    values = _stream_annotation_values(data, key)
+    return round(sum(values), 2) if values else None
 
 
 def _current_loaded_percent(data: TorrServerData) -> float | None:
@@ -239,6 +274,83 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.ENUM,
         options=STREAM_BUFFER_MODE_OPTIONS,
         value_fn=_stream_buffer_mode,
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_forecast",
+        translation_key="stream_forecast",
+        device_class=SensorDeviceClass.ENUM,
+        options=STREAM_FORECAST_OPTIONS,
+        value_fn=lambda data: evaluate_streams_forecast(
+            data.streaming_torrents
+        ).state,
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_interruption_eta",
+        translation_key="stream_interruption_eta",
+        icon="mdi:timer-alert-outline",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: _stream_minimum(
+            data, "stream_interruption_eta_seconds"
+        ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_speed_margin",
+        translation_key="stream_speed_margin",
+        icon="mdi:speedometer-medium",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda data: _stream_minimum(
+            data, "stream_speed_margin_percent"
+        ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_session_minimum_buffer",
+        translation_key="stream_session_minimum_buffer",
+        icon="mdi:timer-minus-outline",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: _stream_minimum(
+            data, "stream_session_minimum_buffer_seconds"
+        ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_session_average_speed",
+        translation_key="stream_session_average_speed",
+        icon="mdi:chart-line",
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: _stream_total(
+            data, "stream_session_average_speed_mbps"
+        ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_session_insufficient_time",
+        translation_key="stream_session_insufficient_time",
+        icon="mdi:timer-alert",
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: _stream_maximum(
+            data, "stream_session_insufficient_seconds"
+        ),
+    ),
+    TorrServerSensorEntityDescription(
+        key="stream_session_risk_events",
+        translation_key="stream_session_risk_events",
+        icon="mdi:counter",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda data: _stream_total(data, "stream_session_risk_events"),
     ),
     TorrServerSensorEntityDescription(
         key="total_torrents",
@@ -460,6 +572,8 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
         """Return the current sensor value."""
         if self.entity_description.key == "stream_health":
             return self._stream_health().state
+        if self.entity_description.key == "stream_forecast":
+            return self._stream_forecast().state
         return self.entity_description.value_fn(self.coordinator.data)
 
     def _stream_health(self) -> StreamHealth:
@@ -474,11 +588,26 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
             ),
         )
 
+    def _stream_forecast(self) -> StreamForecast:
+        """Evaluate interruption risk with the configured thresholds."""
+        return evaluate_streams_forecast(
+            self.coordinator.data.streaming_torrents,
+            risk_horizon_seconds=self.coordinator.stream_risk_horizon,
+            stable_margin_percent=self.coordinator.stream_stable_margin,
+            preload_margin_percent=self.coordinator.stream_preload_margin,
+            low_buffer_seconds=self.coordinator.stream_low_buffer_seconds,
+            protected_buffer_seconds=(
+                self.coordinator.stream_protected_buffer_seconds
+            ),
+        )
+
     @property
     def icon(self) -> str | None:
         """Return a state-aware icon for streaming health."""
         if self.entity_description.key == "stream_health":
             return stream_health_icon(str(self.native_value))
+        if self.entity_description.key == "stream_forecast":
+            return stream_forecast_icon(str(self.native_value))
         return self.entity_description.icon
 
     @property
@@ -495,6 +624,8 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
                     0,
                 ),
             }
+        if self.entity_description.key == "stream_forecast":
+            return self._stream_forecast().attributes
         if self.entity_description.attributes_fn is None:
             return None
         return self.entity_description.attributes_fn(self.coordinator.data)

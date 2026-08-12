@@ -39,6 +39,8 @@ from .const import (
     CONF_STREAM_LOW_BUFFER_SECONDS,
     CONF_STREAM_PRELOAD_MARGIN,
     CONF_STREAM_PROTECTED_BUFFER_SECONDS,
+    CONF_STREAM_RISK_CONFIRMATION,
+    CONF_STREAM_RISK_HORIZON,
     CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -50,6 +52,8 @@ from .const import (
     DEFAULT_STREAM_LOW_BUFFER_SECONDS,
     DEFAULT_STREAM_PRELOAD_MARGIN,
     DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
+    DEFAULT_STREAM_RISK_CONFIRMATION,
+    DEFAULT_STREAM_RISK_HORIZON,
     DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
@@ -59,11 +63,15 @@ from .const import (
     MAX_STREAM_BUFFER_SECONDS,
     MAX_STREAM_DOWNGRADE_DELAY,
     MAX_STREAM_MARGIN,
+    MAX_STREAM_RISK_CONFIRMATION,
+    MAX_STREAM_RISK_HORIZON,
     MIN_SCAN_INTERVAL,
     MIN_STREAM_AVERAGE_WINDOW,
     MIN_STREAM_BUFFER_SECONDS,
     MIN_STREAM_DOWNGRADE_DELAY,
     MIN_STREAM_MARGIN,
+    MIN_STREAM_RISK_CONFIRMATION,
+    MIN_STREAM_RISK_HORIZON,
 )
 from .discovery import (
     DiscoveredTorrServer,
@@ -508,6 +516,36 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                         NumberSelectorConfig(
                             min=MIN_STREAM_DOWNGRADE_DELAY,
                             max=MAX_STREAM_DOWNGRADE_DELAY,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_RISK_HORIZON,
+                        default=defaults.get(
+                            CONF_STREAM_RISK_HORIZON,
+                            DEFAULT_STREAM_RISK_HORIZON,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_RISK_HORIZON,
+                            max=MAX_STREAM_RISK_HORIZON,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_RISK_CONFIRMATION,
+                        default=defaults.get(
+                            CONF_STREAM_RISK_CONFIRMATION,
+                            DEFAULT_STREAM_RISK_CONFIRMATION,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_RISK_CONFIRMATION,
+                            max=MAX_STREAM_RISK_CONFIRMATION,
                             step=1,
                             mode=NumberSelectorMode.BOX,
                             unit_of_measurement="s",
