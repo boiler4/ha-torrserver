@@ -45,4 +45,18 @@ async def system_health_info(hass: HomeAssistant) -> dict[str, Any]:
             sorted({item.data.ffprobe_status for item in connected if item.data})
         )
         or "unknown",
+        "ffprobe_failures": max(
+            (item.data.ffprobe_failures for item in connected if item.data),
+            default=0,
+        ),
+        "ffprobe_last_errors": ", ".join(
+            sorted(
+                {
+                    item.data.ffprobe_last_error
+                    for item in connected
+                    if item.data and item.data.ffprobe_last_error
+                }
+            )
+        )
+        or "none",
     }

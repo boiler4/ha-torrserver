@@ -43,6 +43,7 @@ from .stream_health import (
     STREAM_BUFFER_MODE_OPTIONS,
     STREAM_HEALTH_OPTIONS,
     StreamHealth,
+    evaluate_stream_health,
     evaluate_streams_health,
     stream_health_icon,
 )
@@ -162,6 +163,41 @@ def _current_loaded_percent(data: TorrServerData) -> float | None:
     return round(min(max(loaded / total * 100, 0), 100), 1)
 
 
+def _current_bit_rate_health(data: TorrServerData) -> StreamHealth | None:
+    """Return the same bitrate assessment used by stream health."""
+    current = data.current_torrent
+    return evaluate_stream_health(current) if current else None
+
+
+def _current_bit_rate(data: TorrServerData) -> float | None:
+    health = _current_bit_rate_health(data)
+    if health is None:
+        return None
+    value = health.attributes.get("bit_rate_mbps")
+    return float(value) if value is not None else None
+
+
+def _current_bit_rate_attributes(data: TorrServerData) -> dict[str, Any]:
+    health = _current_bit_rate_health(data)
+    if health is None:
+        return {}
+    current = data.current_torrent or {}
+    return {
+        "bit_rate_source": health.attributes.get("bit_rate_source"),
+        "estimated": health.attributes.get("bit_rate_estimated", True),
+        "ffprobe_status": current.get("ffprobe_status", data.ffprobe_status),
+        "ffprobe_failure_count": current.get(
+            "ffprobe_failure_count", data.ffprobe_failures
+        ),
+        "ffprobe_last_error": current.get(
+            "ffprobe_last_error", data.ffprobe_last_error
+        ),
+        "ffprobe_retry_seconds": current.get(
+            "ffprobe_retry_seconds", data.ffprobe_retry_seconds
+        ),
+    }
+
+
 def _stream_health_value(data: TorrServerData) -> str:
     return evaluate_streams_health(data.streaming_torrents).state
 
@@ -195,6 +231,13 @@ def _current_attributes(data: TorrServerData) -> dict[str, Any]:
         "connected_seeders",
         "half_open_peers",
         "duration_seconds",
+        "active_file_size",
+        "bit_rate_source",
+        "bit_rate_estimated",
+        "ffprobe_status",
+        "ffprobe_failure_count",
+        "ffprobe_last_error",
+        "ffprobe_retry_seconds",
     )
     attributes = {key: current[key] for key in allowed if key in current}
     if "download_speed" in current:
@@ -280,9 +323,7 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         translation_key="stream_forecast",
         device_class=SensorDeviceClass.ENUM,
         options=STREAM_FORECAST_OPTIONS,
-        value_fn=lambda data: evaluate_streams_forecast(
-            data.streaming_torrents
-        ).state,
+        value_fn=lambda data: evaluate_streams_forecast(data.streaming_torrents).state,
     ),
     TorrServerSensorEntityDescription(
         key="stream_interruption_eta",
@@ -291,9 +332,7 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DURATION,
         native_unit_of_measurement=UnitOfTime.SECONDS,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: _stream_minimum(
-            data, "stream_interruption_eta_seconds"
-        ),
+        value_fn=lambda data: _stream_minimum(data, "stream_interruption_eta_seconds"),
     ),
     TorrServerSensorEntityDescription(
         key="stream_speed_margin",
@@ -301,9 +340,7 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         icon="mdi:speedometer-medium",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: _stream_minimum(
-            data, "stream_speed_margin_percent"
-        ),
+        value_fn=lambda data: _stream_minimum(data, "stream_speed_margin_percent"),
     ),
     TorrServerSensorEntityDescription(
         key="stream_session_minimum_buffer",
@@ -326,9 +363,7 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
-        value_fn=lambda data: _stream_total(
-            data, "stream_session_average_speed_mbps"
-        ),
+        value_fn=lambda data: _stream_total(data, "stream_session_average_speed_mbps"),
     ),
     TorrServerSensorEntityDescription(
         key="stream_session_insufficient_time",
@@ -535,9 +570,8 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         device_class=SensorDeviceClass.DATA_RATE,
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         state_class=SensorStateClass.MEASUREMENT,
-        value_fn=lambda data: _bits_per_second_to_mbps(
-            _current_value(data, "bit_rate")
-        ),
+        value_fn=_current_bit_rate,
+        attributes_fn=_current_bit_rate_attributes,
     ),
 )
 
@@ -583,9 +617,7 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
             stable_margin_percent=self.coordinator.stream_stable_margin,
             preload_margin_percent=self.coordinator.stream_preload_margin,
             low_buffer_seconds=self.coordinator.stream_low_buffer_seconds,
-            protected_buffer_seconds=(
-                self.coordinator.stream_protected_buffer_seconds
-            ),
+            protected_buffer_seconds=(self.coordinator.stream_protected_buffer_seconds),
         )
 
     def _stream_forecast(self) -> StreamForecast:
@@ -596,9 +628,7 @@ class TorrServerSensor(TorrServerEntity, SensorEntity):
             stable_margin_percent=self.coordinator.stream_stable_margin,
             preload_margin_percent=self.coordinator.stream_preload_margin,
             low_buffer_seconds=self.coordinator.stream_low_buffer_seconds,
-            protected_buffer_seconds=(
-                self.coordinator.stream_protected_buffer_seconds
-            ),
+            protected_buffer_seconds=(self.coordinator.stream_protected_buffer_seconds),
         )
 
     @property

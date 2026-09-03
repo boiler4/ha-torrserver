@@ -106,9 +106,17 @@ mostrato una schermata di buffering.
 ## Bitrate sperimentale e `ffprobe`
 
 L’opzione è disattivata di default. Home Assistant interroga l’endpoint `/ffp`
-già presente in TorrServer al massimo una volta per file, con timeout e cache
-solo in memoria. Non modifica TorrServer. Se fallisce, usa una stima conservativa
-e crea un avviso Repairs.
+già presente in TorrServer dopo il buffer iniziale, con timeout e cache limitata
+solo in memoria. Gli errori transitori vengono ritentati dopo 15, 30, 60, 120 e
+al massimo 300 secondi; l’avviso Repairs compare solo dopo tre errori
+consecutivi. Diagnostica espone il tipo di errore e il prossimo tentativo senza
+identificatori del torrent.
+
+I valori misurati espongono `bit_rate_source` e `estimated: false`. Durante
+l’attesa o in caso di errore, il monitoraggio continua con una stima
+esplicitamente indicata. Nei torrent multi-file il fallback usa la dimensione
+del file attivo, non quella dell’intero torrent. L’integrazione non modifica
+TorrServer o la riproduzione.
 
 TorrServer deve poter eseguire `ffprobe`. Nel sistema Debian/Linux verificato:
 
@@ -123,6 +131,23 @@ Verifica sempre il percorso reale e non sovrascrivere file esistenti. In Docker
 serve un’immagine che contenga ffprobe; su Windows `ffprobe.exe`; su macOS il
 pacchetto ffmpeg normalmente lo include. L’integrazione non esegue mai questi
 passi amministrativi.
+
+### Log opzionale per osservare la salute streaming
+
+Per una breve finestra diagnostica abilita il debug solo per l’integrazione:
+
+```yaml
+logger:
+  logs:
+    custom_components.torrserver: debug
+```
+
+Durante una lettura reale viene emesso un JSON `stream_health_sample` per ogni
+poll, seguito da `stream_health_idle` alla fine. Contiene decisioni di salute e
+forecast, buffer e trend, margine di velocità, provenienza del bitrate,
+cache/peer/sessione e retry ffprobe. Non contiene titoli, hash, link, percorsi,
+URL, indirizzi o credenziali. Disabilita il debug dopo aver raccolto abbastanza
+sessioni.
 
 ## Bug e privacy
 

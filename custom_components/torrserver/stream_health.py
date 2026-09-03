@@ -78,36 +78,47 @@ def _stream_key(torrent: Mapping[str, Any]) -> str:
     return f"object:{id(torrent)}"
 
 
-def _bit_rate(torrent: Mapping[str, Any]) -> tuple[float, str]:
+def _bit_rate(torrent: Mapping[str, Any]) -> tuple[float, str, bool]:
     """Return the best available bitrate and explain where it came from."""
     bit_rate = _as_float(torrent.get("bit_rate"))
     if bit_rate > 0:
-        return bit_rate, str(torrent.get("bit_rate_source") or "torrserver")
+        return (
+            bit_rate,
+            str(torrent.get("bit_rate_source") or "torrserver"),
+            bool(torrent.get("bit_rate_estimated", False)),
+        )
 
     torrent_size = _as_float(torrent.get("torrent_size"))
+    active_file_size = _as_float(torrent.get("active_file_size"))
+    media_size = active_file_size or torrent_size
     duration_seconds = _as_float(torrent.get("duration_seconds"))
-    if torrent_size > 0 and duration_seconds >= 300:
-        calculated_bit_rate = torrent_size * 8 / duration_seconds
+    if media_size > 0 and duration_seconds >= 300:
+        calculated_bit_rate = media_size * 8 / duration_seconds
         if 500_000 <= calculated_bit_rate <= 200_000_000:
-            return calculated_bit_rate, "size_and_duration"
+            source = (
+                "active_file_size_and_duration"
+                if active_file_size > 0
+                else "torrent_size_and_duration"
+            )
+            return calculated_bit_rate, source, True
 
     title = f"{torrent.get('title', '')} {torrent.get('name', '')}".casefold()
-    size_gib = torrent_size / (1024**3)
+    size_gib = media_size / (1024**3)
     if "2160p" in title or "4k" in title:
         if size_gib >= 40:
-            return 40_000_000.0, "auto_4k_large"
+            return 40_000_000.0, "auto_4k_large", True
         if size_gib >= 20:
-            return 25_000_000.0, "auto_4k_medium"
-        return 16_000_000.0, "auto_4k_compact"
+            return 25_000_000.0, "auto_4k_medium", True
+        return 16_000_000.0, "auto_4k_compact", True
     if "1080p" in title:
         if size_gib >= 20:
-            return 20_000_000.0, "auto_1080p_large"
+            return 20_000_000.0, "auto_1080p_large", True
         if size_gib >= 8:
-            return 12_000_000.0, "auto_1080p_medium"
-        return 8_000_000.0, "auto_1080p_compact"
+            return 12_000_000.0, "auto_1080p_medium", True
+        return 8_000_000.0, "auto_1080p_compact", True
     if "720p" in title:
-        return 6_000_000.0, "auto_720p"
-    return float(DEFAULT_BIT_RATE_BPS), "fallback_8_mbps"
+        return 6_000_000.0, "auto_720p", True
+    return float(DEFAULT_BIT_RATE_BPS), "fallback_8_mbps", True
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,18 +192,14 @@ def evaluate_stream_health(
     loaded_bytes = _as_int(torrent.get("loaded_size"))
     torrent_size = _as_int(torrent.get("torrent_size"))
     preloaded_bytes = _as_int(torrent.get("preloaded_bytes"))
-    bit_rate_bps, bit_rate_source = _bit_rate(torrent)
+    bit_rate_bps, bit_rate_source, bit_rate_estimated = _bit_rate(torrent)
     required_speed = bit_rate_bps / 8
     speed_ratio = download_speed / required_speed
 
     stable_margin_percent = max(float(stable_margin_percent), 0)
-    preload_margin_percent = max(
-        float(preload_margin_percent), stable_margin_percent
-    )
+    preload_margin_percent = max(float(preload_margin_percent), stable_margin_percent)
     low_buffer_seconds = max(float(low_buffer_seconds), EMERGENCY_BUFFER_SECONDS)
-    protected_buffer_seconds = max(
-        float(protected_buffer_seconds), low_buffer_seconds
-    )
+    protected_buffer_seconds = max(float(protected_buffer_seconds), low_buffer_seconds)
     stable_ratio = 1 + stable_margin_percent / 100
     preload_ratio = 1 + preload_margin_percent / 100
     minimum_stable_speed = required_speed * stable_ratio
@@ -202,8 +209,7 @@ def evaluate_stream_health(
     if reader_buffer_value is not None:
         buffer_ahead_bytes = _as_float(reader_buffer_value)
         buffer_source = str(
-            torrent.get("buffer_measurement_source")
-            or "contiguous_completed_pieces"
+            torrent.get("buffer_measurement_source") or "contiguous_completed_pieces"
         )
     elif torrent.get("cache_stats_available") is not True and preloaded_bytes > 0:
         buffer_ahead_bytes = float(preloaded_bytes)
@@ -224,9 +230,7 @@ def evaluate_stream_health(
         if trend_bytes_per_second is not None and required_speed > 0
         else None
     )
-    trend_seconds_per_minute = (
-        trend_ratio * 60 if trend_ratio is not None else None
-    )
+    trend_seconds_per_minute = trend_ratio * 60 if trend_ratio is not None else None
     cache_full = bool(torrent.get("cache_full"))
 
     if buffer_seconds is None:
@@ -268,10 +272,7 @@ def evaluate_stream_health(
     elif buffer_seconds is not None:
         if buffer_seconds < low_buffer_seconds and (
             speed_ratio < stable_ratio
-            or (
-                trend_ratio is not None
-                and trend_ratio < -BUFFER_TREND_TOLERANCE_RATIO
-            )
+            or (trend_ratio is not None and trend_ratio < -BUFFER_TREND_TOLERANCE_RATIO)
         ):
             state = "insufficient"
             reason = "low_buffer_and_insufficient_speed"
@@ -326,12 +327,8 @@ def evaluate_stream_health(
         "average_window_seconds": torrent.get("average_window_seconds"),
         "speed_sample_count": torrent.get("speed_sample_count"),
         "required_download_speed_mbps": round(bit_rate_bps / 1_000_000, 2),
-        "minimum_stable_speed_mbps": round(
-            minimum_stable_speed * 8 / 1_000_000, 2
-        ),
-        "minimum_preload_speed_mbps": round(
-            minimum_preload_speed * 8 / 1_000_000, 2
-        ),
+        "minimum_stable_speed_mbps": round(minimum_stable_speed * 8 / 1_000_000, 2),
+        "minimum_preload_speed_mbps": round(minimum_preload_speed * 8 / 1_000_000, 2),
         "speed_ratio": round(speed_ratio, 2),
         "speed_margin_percent": round((speed_ratio - 1) * 100, 1),
         "stable_margin_percent": stable_margin_percent,
@@ -361,6 +358,7 @@ def evaluate_stream_health(
         "loaded_percent": round(loaded_percent, 1),
         "bit_rate_mbps": round(bit_rate_bps / 1_000_000, 2),
         "bit_rate_source": bit_rate_source,
+        "bit_rate_estimated": bit_rate_estimated,
     }
 
     candidate_state = state

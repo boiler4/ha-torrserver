@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.0-beta.2
+
+- Retry transient `/ffp` failures with bounded 15/30/60/120/300-second backoff
+  instead of permanently suppressing the file after one failed probe.
+- Create the ffprobe Repair warning only after three consecutive failures and
+  expose privacy-safe failure categories and retry state in diagnostics.
+- Use the active media-file size, rather than the complete torrent size, for
+  multi-file bitrate fallbacks.
+- Mark bitrate values explicitly as measured or estimated and make the current
+  bitrate sensor use the same source-selection logic as streaming health.
+- Bound the in-memory probe cache to 256 entries with a 24-hour lifetime.
+- Add opt-in structured debug samples for streaming-health inputs, decisions,
+  continuity forecasts, and ffprobe state without media identifiers.
+
 ## 0.4.0-beta.1
 
 - Add a read-only streaming-continuity forecast based on measured consecutive
