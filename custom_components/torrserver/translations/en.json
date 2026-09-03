@@ -122,8 +122,8 @@
   "issues": {
     "ffprobe_unavailable": {
       "title": "Experimental bitrate analysis is unavailable",
-      "description": "The experimental analysis was enabled, but TorrServer at {url} could not run ffprobe. Install/provide the ffprobe executable to TorrServer or disable the experimental option. Streaming statistics continue using a conservative estimate."
+      "description": "Experimental bitrate analysis has failed repeatedly on TorrServer at {url}. Check the integration diagnostics for the failure type and verify the /ffp endpoint. Streaming statistics continue with an explicitly marked estimate and probing retries automatically."
     }
   },
-  "system_health": {"info": {"configured_instances": "Configured instances", "connected_instances": "Connected instances", "server_versions": "Server versions", "ffprobe_status": "ffprobe status"}}
+  "system_health": {"info": {"configured_instances": "Configured instances", "connected_instances": "Connected instances", "server_versions": "Server versions", "ffprobe_status": "ffprobe status", "ffprobe_failures": "ffprobe consecutive failures", "ffprobe_last_errors": "ffprobe last errors"}}
 }

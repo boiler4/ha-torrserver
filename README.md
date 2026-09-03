@@ -182,11 +182,18 @@ cards:
 ## Experimental real bitrate (`ffprobe`)
 
 This option is off by default. The integration calls TorrServer's existing
-read-only `/ffp/<hash>/<file>` endpoint at most once per streamed file, applies
-a timeout, and keeps the result only in Home Assistant memory. It does not
-install software, write TorrServer settings, or change playback. If analysis
-fails, streaming monitoring continues with the size/duration or conservative
-resolution fallback and Home Assistant creates a Repair warning.
+read-only `/ffp/<hash>/<file>` endpoint after the initial buffer is available,
+applies a timeout, and keeps successful results only in bounded Home Assistant
+memory. Transient failures retry after 15, 30, 60, 120, and at most 300 seconds;
+a Repair warning appears only after three consecutive failures. Failure types
+and the next retry are available in diagnostics without torrent identifiers.
+
+Measured values expose `bit_rate_source` and `estimated: false`. While probing
+is pending or unavailable, monitoring continues with an explicitly marked
+size/duration or conservative resolution estimate. For multi-file torrents the
+fallback uses the active media file rather than the complete torrent size. The
+integration does not install software, write TorrServer settings, or change
+playback.
 
 TorrServer must be able to execute `ffprobe`. In the Linux/Debian layout tested
 for this integration, `ffprobe` is provided by the `ffmpeg` package and was made
@@ -204,6 +211,25 @@ do not overwrite an existing file. For Docker, add `ffprobe` to a custom image
 and make it visible inside the TorrServer container. On Windows use
 `ffprobe.exe`; on macOS an ffmpeg package normally provides `ffprobe`. These are
 server-administration steps and are never performed by this integration.
+
+### Optional stream-health observation log
+
+For a short diagnostic observation window, enable debug logging only for this
+integration:
+
+```yaml
+logger:
+  logs:
+    custom_components.torrserver: debug
+```
+
+While a real reader is active, one machine-readable `stream_health_sample` JSON
+object is emitted per coordinator poll, followed by a `stream_health_idle`
+marker when playback ends. Samples include health and forecast decisions,
+playable buffer and trend, speed margin, bitrate provenance, cache/peer/session
+metrics, and ffprobe retry state. They never include torrent titles, hashes,
+links, file paths, server URLs, addresses, or credentials. Disable the override
+after collecting enough sessions to avoid unnecessary long-term log volume.
 
 ## Entities and units
 
