@@ -382,6 +382,39 @@ def evaluate_stream_health(
             score = max(score, 50)
         attributes["score"] = score
 
+    if torrent.get("stream_health_model") == "reader_v2":
+        state = str(torrent.get("shadow_health_state") or state)
+        reason = str(torrent.get("shadow_reason") or reason)
+        if state == "protected":
+            score = 100
+        elif state == "stable":
+            score = max(score or 0, 50)
+        elif state == "insufficient":
+            score = min(score or 49, 49)
+        else:
+            score = None
+        attributes.update(
+            {
+                "score": score,
+                "reason": reason,
+                "model": "reader_v2",
+                "condition": torrent.get("shadow_condition"),
+                "candidate_condition": torrent.get("shadow_candidate_condition"),
+                "phase": torrent.get("shadow_phase"),
+                "confidence": torrent.get("shadow_confidence"),
+                "buffer_mode": torrent.get("shadow_buffer_mode"),
+                "forecast_state": torrent.get("shadow_forecast_state"),
+                "interruption_risk": torrent.get("shadow_interruption_risk"),
+                "interruption_eta_seconds": torrent.get("shadow_eta_seconds"),
+                "eta_source": torrent.get("shadow_eta_source"),
+                "long_speed_ratio": torrent.get("shadow_long_speed_ratio"),
+                "short_speed_ratio": torrent.get("shadow_short_speed_ratio"),
+                "transition_pending_seconds": torrent.get(
+                    "shadow_transition_pending_seconds"
+                ),
+            }
+        )
+
     return StreamHealth(state=state, score=score, reason=reason, attributes=attributes)
 
 

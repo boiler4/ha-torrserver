@@ -20,6 +20,7 @@ _REDACT_TORRENT = {
     "poster",
     "title",
     "torrs_hash",
+    "shadow_reader_positions",
 }
 
 

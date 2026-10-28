@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import unittest
 from collections import OrderedDict
 
@@ -10,7 +11,14 @@ from custom_components.torrserver.api import (
     TorrServerApiClient,
     TorrServerCannotConnect,
 )
+from custom_components.torrserver.sensor import (
+    _current_bit_rate,
+    _current_bit_rate_attributes,
+)
 from custom_components.torrserver.stream_health import evaluate_stream_health
+from custom_components.torrserver.telemetry import (
+    stream_diagnostic_sample as _stream_diagnostic_sample,
+)
 
 
 class _Clock:
@@ -165,7 +173,54 @@ class BitRateTests(unittest.TestCase):
         self.assertTrue(health.attributes["bit_rate_estimated"])
 
 
-class BitRateSourceTests(unittest.TestCase):
+class DiagnosticLoggingTests(unittest.TestCase):
+    def test_sample_is_detailed_and_contains_no_media_identifiers(self) -> None:
+        sample = _stream_diagnostic_sample(
+            {
+                "hash": "private-hash",
+                "title": "Private title",
+                "link": "magnet:?xt=private",
+                "stat": 3,
+                "download_speed": 4_000_000,
+                "average_download_speed": 3_000_000,
+                "instant_download_speed": 4_000_000,
+                "average_speed_source": "rolling_average",
+                "bit_rate": 20_045_351,
+                "bit_rate_source": "ffprobe_experimental",
+                "bit_rate_estimated": False,
+                "buffer_ahead_bytes": 40_000_000,
+                "buffer_measurement_source": "contiguous_completed_pieces",
+                "connected_seeders": 8,
+                "active_peers": 3,
+                "stream_forecast_state": "safe",
+                "stream_forecast_reason": "buffer_not_depleting",
+                "stream_interruption_risk": False,
+                "ffprobe_status": "success",
+            },
+            sequence=7,
+            index=1,
+            total=1,
+            stable_margin_percent=0,
+            preload_margin_percent=10,
+            low_buffer_seconds=15,
+            protected_buffer_seconds=60,
+            ffprobe_status="available",
+            ffprobe_failures=0,
+            ffprobe_last_error=None,
+            ffprobe_retry_seconds=None,
+        )
+        encoded = json.dumps(sample)
+        self.assertNotIn("private-hash", encoded)
+        self.assertNotIn("Private title", encoded)
+        self.assertNotIn("magnet:", encoded)
+        self.assertEqual(sample["bit_rate_mbps"], 20.05)
+        self.assertFalse(sample["bit_rate_estimated"])
+        self.assertEqual(sample["health"], "stable")
+        self.assertIn("buffer_seconds", sample)
+        self.assertIn("speed_ratio", sample)
+        self.assertIn("reader_v2_phase", sample)
+        self.assertFalse(any(key.startswith("shadow_") for key in sample))
+
     def test_measured_bitrate_is_not_marked_estimated(self) -> None:
         torrent = {
             "hash": "test-hash",
@@ -179,6 +234,12 @@ class BitRateSourceTests(unittest.TestCase):
         health = evaluate_stream_health(torrent)
         self.assertEqual(health.attributes["bit_rate_mbps"], 20.05)
         self.assertFalse(health.attributes["bit_rate_estimated"])
+
+        data = api.TorrServerData((torrent,), ffprobe_status="available")
+        self.assertEqual(_current_bit_rate(data), 20.05)
+        attributes = _current_bit_rate_attributes(data)
+        self.assertEqual(attributes["bit_rate_source"], "ffprobe_experimental")
+        self.assertFalse(attributes["estimated"])
 
     def test_title_heuristic_is_explicitly_estimated(self) -> None:
         health = evaluate_stream_health(

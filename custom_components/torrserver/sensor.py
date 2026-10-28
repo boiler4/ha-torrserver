@@ -13,6 +13,7 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    MAX_LENGTH_STATE_STATE,
     PERCENTAGE,
     EntityCategory,
     UnitOfDataRate,
@@ -49,6 +50,18 @@ from .stream_health import (
 )
 
 SensorValue = str | int | float | None
+
+
+def _safe_text_state(value: Any) -> str | None:
+    """Return text that always fits in Home Assistant's state column."""
+    if value is None:
+        return None
+    text = str(value)
+    if not text:
+        return None
+    if len(text) <= MAX_LENGTH_STATE_STATE:
+        return text
+    return f"{text[: MAX_LENGTH_STATE_STATE - 1]}…"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -417,7 +430,7 @@ SENSOR_DESCRIPTIONS: tuple[TorrServerSensorEntityDescription, ...] = (
         key="current_torrent",
         translation_key="current_torrent",
         icon="mdi:movie-open",
-        value_fn=lambda data: (
+        value_fn=lambda data: _safe_text_state(
             _current_value(data, "title") or _current_value(data, "name")
         ),
         attributes_fn=_current_attributes,

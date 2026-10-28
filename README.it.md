@@ -6,7 +6,7 @@ Integrazione locale e in sola lettura per monitorare
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer) da Home Assistant.
 Non aggiunge, elimina, arresta o modifica torrent e impostazioni TorrServer.
 
-La versione stabile corrente è `0.3.0`. `0.4.0-beta.1` è una prerelease
+La versione stabile corrente è `0.3.0`. `0.4.0-beta.4` è una prerelease
 facoltativa per provare autonomia e previsione delle interruzioni.
 
 ## Funzioni principali
@@ -23,16 +23,17 @@ facoltativa per provare autonomia e previsione delle interruzioni.
 
 ## Installazione HACS
 
-Finché il repository non è nel catalogo HACS predefinito:
+TorrServer è incluso nel catalogo community predefinito di HACS.
 
-1. Apri HACS → menu → **Repository personalizzati**.
-2. Inserisci `https://github.com/boiler4/ha-torrserver` come **Integrazione**.
-3. Installa TorrServer, riavvia Home Assistant e aggiungi l’integrazione da
+1. Apri HACS e cerca **TorrServer**.
+2. Scarica l'integrazione, riavvia Home Assistant e aggiungila da
    **Impostazioni → Dispositivi e servizi**.
+3. HACS propone la stabile. Per provare questa beta, abilita le prerelease nel
+   selettore delle versioni e scegli esplicitamente `v0.4.0-beta.4`.
 
-La versione stabile viene selezionata automaticamente. In attesa
-dell'approvazione nel catalogo, il repository rimane installabile normalmente
-da HACS come repository personalizzato.
+Se il catalogo non è ancora aggiornato, aggiungi
+`https://github.com/boiler4/ha-torrserver` come repository personalizzato di tipo
+**Integrazione**. La presenza in HACS non significa inclusione in HA Core.
 
 ## Ricerca e autenticazione
 
@@ -49,33 +50,26 @@ verifica SSL.
 
 ## Come funziona la salute streaming
 
-Contano soltanto i torrent con un lettore cache TorrServer realmente attivo: un
-torrent soltanto in seed non peggiora lo stato. Con più riproduzioni viene
-mostrato lo stato peggiore e gli attributi riportano i conteggi separati.
+La beta.4 usa **reader-v2** come modello autorevole predefinito. Combina posizione
+del lettore TorrServer, pezzi consecutivi completati, consumo del lettore,
+velocità media e andamento del buffer. Un torrent soltanto in seed, senza lettore
+cache attivo, non peggiora la salute dello streaming.
 
-Il segnale principale sono i secondi realmente disponibili davanti al lettore,
-calcolati contando i `Pieces` consecutivi marcati `Completed` da `/cache` fino
-al primo buco e convertendoli con il bitrate. Il pezzo corrente viene escluso
-perché TorrServer non espone l'offset esatto del lettore al suo interno:
+- Se il resto del file è già in cache, lo stato resta **Buono** (`protected`)
+  anche con download a zero. La sola occupazione cache non prova la continuità.
+- Avvio e ripresa raccolgono nuovi campioni prima di abilitare il rischio. Un
+  seek rilevato o una pausa confermata azzerano rischio ed ETA precedenti; alla
+  ripresa si misura nuovamente, senza riutilizzare le vecchie velocità.
+- Deficit persistenti e svuotamento previsto del buffer possono ancora generare
+  un allarme dopo la fase iniziale di misurazione.
+- Entity ID e stati tecnici restano compatibili. Gli attributi espongono modello,
+  fase, condizione, buffer, confidenza e motivazione.
+- L'opzione reader-v2 è autorevole, non solo diagnostica. Disattivandola si usa
+  il modello precedente; le chiavi salvate `stream_shadow_*` restano compatibili.
 
-- **Buono** (stato tecnico `protected`) con almeno 60 secondi consecutivi o file
-  completo;
-- **Stabile** con almeno 15 secondi oppure buffer basso che riesce a recuperare;
-- **Non sufficiente** sotto 15 secondi quando velocità e andamento del buffer
-  non riescono a sostenere la riproduzione;
-- **Misurazione** quando mancano ancora dati sufficienti.
-
-La modalità buffer è separata: `full`, `preloading`, `stable`, `draining`,
-`recovering` o `unknown`. `full` indica che il buffer consecutivo ha raggiunto
-la soglia Buono; l'occupazione della cache è solo diagnostica e non rende più
-lo stato Buono da sola. Le impostazioni predefinite sono 15/60 secondi, margini
-velocità 0%/10%, media 15 secondi e ritardo di peggioramento 15 secondi. Tutti
-questi valori sono modificabili. Sotto 5 secondi o senza sorgenti utilizzabili
-lo stato peggiora immediatamente.
-
-Negli attributi trovi secondi, modalità e andamento buffer, velocità in Mbps,
-bitrate, soglie, occupazione cache, pezzi consecutivi completati, campioni, peer,
-seed, motivazione e transizione pendente.
+Le fasi sono dedotte dall'attività del server: l'integrazione non legge il tasto
+pausa né la schermata di caricamento del player. La previsione è una stima,
+non una garanzia. Gli allarmi iniziali restano in valutazione sul campo.
 
 ## Semaforo nativo
 
@@ -93,8 +87,8 @@ stimato all'interruzione compare soltanto quando il buffer misurato diminuisce;
 non viene inventato se è stabile o cresce.
 
 Per impostazione predefinita il rischio viene candidato entro 60 secondi e deve
-persistere 15 secondi; entrambe le soglie sono modificabili. Sotto cinque secondi
-il rischio è immediato. Il sensore binario **Rischio interruzione streaming** è
+persistere 15 secondi; entrambe le soglie sono modificabili. Dopo la fase iniziale di misurazione, sotto cinque secondi
+il rischio può bypassare la conferma ordinaria. Il sensore binario **Rischio interruzione streaming** è
 utilizzabile in notifiche e automazioni native.
 
 Il riepilogo della sessione contiene buffer minimo, velocità media, tempo nello

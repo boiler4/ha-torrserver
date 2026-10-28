@@ -80,19 +80,41 @@ def _as_int(value: Any) -> int:
         return 0
 
 
+def _strict_nonnegative_int(value: Any) -> int | None:
+    """Parse an integer without turning malformed data into a valid zero."""
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def _piece_completed(piece: dict[str, Any] | None) -> bool:
+    """Accept only TorrServer's explicit JSON boolean completion proof."""
+    if not piece:
+        return False
+    return piece.get("Completed", piece.get("completed")) is True
+
+
 def _cache_readers(cache_state: dict[str, Any]) -> tuple[dict[str, Any], ...]:
     """Return valid reader windows, including a reader at the file start."""
     readers = cache_state.get("Readers")
     if not isinstance(readers, list):
         return ()
-    return tuple(
-        reader
-        for reader in readers
-        if isinstance(reader, dict)
-        and "Reader" in reader
-        and _as_int(reader.get("Reader")) >= 0
-        and _as_int(reader.get("End")) > _as_int(reader.get("Start"))
-    )
+    valid: list[dict[str, Any]] = []
+    for reader in readers:
+        if not isinstance(reader, dict):
+            continue
+        position = _strict_nonnegative_int(reader.get("Reader"))
+        start = _strict_nonnegative_int(reader.get("Start"))
+        end = _strict_nonnegative_int(reader.get("End"))
+        if position is None or start is None or end is None:
+            continue
+        if end > start and start <= position <= end:
+            valid.append(reader)
+    return tuple(valid)
 
 
 def _piece_states(cache_state: dict[str, Any]) -> dict[int, dict[str, Any]] | None:
@@ -135,7 +157,7 @@ def _contiguous_completed_buffer(
         return (0, 0)
 
     current = pieces.get(reader_piece)
-    if not current or not bool(current.get("Completed", current.get("completed"))):
+    if not _piece_completed(current):
         return (0, 0)
 
     default_length = _as_int(cache_state.get("PiecesLength"))
@@ -143,7 +165,7 @@ def _contiguous_completed_buffer(
     completed_pieces = 0
     for piece_id in range(reader_piece + 1, end_piece):
         piece = pieces.get(piece_id)
-        if not piece or not bool(piece.get("Completed", piece.get("completed"))):
+        if not _piece_completed(piece):
             break
         size = _as_int(piece.get("Size", piece.get("size")))
         length = _as_int(piece.get("Length", piece.get("length")))
@@ -154,6 +176,51 @@ def _contiguous_completed_buffer(
         completed_pieces += 1
 
     return completed_bytes, completed_pieces
+
+
+def _reader_remaining_file_cached(
+    torrent: dict[str, Any],
+    cache_state: dict[str, Any],
+    reader: dict[str, Any],
+) -> bool | None:
+    """Prove whether every piece from one reader to its file end is cached.
+
+    A reader exposes only a piece index. If that piece overlaps a file boundary,
+    the active file cannot be identified safely and no conclusion is returned.
+    """
+    piece_length = _strict_nonnegative_int(cache_state.get("PiecesLength"))
+    reader_piece = _strict_nonnegative_int(reader.get("Reader"))
+    pieces = _piece_states(cache_state)
+    files = torrent.get("file_stats")
+    if not piece_length or reader_piece is None or pieces is None:
+        return None
+    if not isinstance(files, list):
+        return None
+
+    piece_start = reader_piece * piece_length
+    piece_end = piece_start + piece_length
+    offset = 0
+    overlaps: list[tuple[int, int]] = []
+    for file_info in files:
+        if not isinstance(file_info, dict):
+            return None
+        length = _strict_nonnegative_int(file_info.get("length"))
+        if length is None:
+            return None
+        file_start = offset
+        file_end = offset + length
+        if length > 0 and piece_start < file_end and piece_end > file_start:
+            overlaps.append((file_start, file_end))
+        offset = file_end
+
+    if len(overlaps) != 1:
+        return None
+    _, file_end = overlaps[0]
+    last_piece = (file_end - 1) // piece_length
+    return all(
+        _piece_completed(pieces.get(piece_id))
+        for piece_id in range(reader_piece, last_piece + 1)
+    )
 
 
 def _active_file_ids(
@@ -431,6 +498,10 @@ class TorrServerApiClient:
             torrent["reader_count"] = len(readers)
             active_readers = list(_cache_readers(cache_result))
             torrent["streaming_reader_count"] = len(active_readers)
+            torrent["shadow_reader_positions"] = tuple(
+                _as_int(reader.get("Reader")) for reader in active_readers
+            )
+            torrent["shadow_piece_length"] = _as_int(cache_result.get("PiecesLength"))
             capacity = _as_int(cache_result.get("Capacity"))
             filled = _as_int(cache_result.get("Filled"))
             torrent["cache_capacity_bytes"] = capacity
@@ -451,6 +522,25 @@ class TorrServerApiClient:
             )
             torrent["buffer_measurement_source"] = (
                 "contiguous_completed_pieces" if smallest else "unavailable"
+            )
+            remaining_cached = [
+                _reader_remaining_file_cached(torrent, cache_result, reader)
+                for reader in active_readers
+            ]
+            torrent["shadow_remaining_file_cached"] = (
+                all(value is True for value in remaining_cached)
+                if remaining_cached
+                and all(value is not None for value in remaining_cached)
+                else None
+            )
+            pieces = _piece_states(cache_result)
+            torrent["shadow_current_piece_complete"] = (
+                all(
+                    _piece_completed(pieces.get(_as_int(reader.get("Reader"))))
+                    for reader in active_readers
+                )
+                if pieces is not None and active_readers
+                else None
             )
             active_file_ids = _active_file_ids(torrent, cache_result)
             if (

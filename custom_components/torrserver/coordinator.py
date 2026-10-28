@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Mapping
 from datetime import timedelta
 from time import monotonic
-from typing import Any
 
 from homeassistant.config_entries import ConfigEntryAuthFailed
 from homeassistant.core import HomeAssistant
@@ -22,87 +20,12 @@ from .api import (
 )
 from .const import CACHE_FULL_THRESHOLD, DOMAIN
 from .stream_forecast import StreamForecastTracker
-from .stream_health import StreamHealthTracker, evaluate_stream_health
+from .stream_health import StreamHealthTracker
 from .stream_metrics import StreamSpeedTracker
+from .stream_shadow import ReaderV2StreamTracker
+from .telemetry import stream_diagnostic_sample
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _stream_diagnostic_sample(
-    torrent: Mapping[str, Any],
-    *,
-    sequence: int,
-    index: int,
-    total: int,
-    stable_margin_percent: float,
-    preload_margin_percent: float,
-    low_buffer_seconds: float,
-    protected_buffer_seconds: float,
-    ffprobe_status: str,
-    ffprobe_failures: int,
-    ffprobe_last_error: str | None,
-    ffprobe_retry_seconds: float | None,
-) -> dict[str, Any]:
-    """Build one privacy-safe, machine-readable health sample."""
-    health = evaluate_stream_health(
-        torrent,
-        stable_margin_percent=stable_margin_percent,
-        preload_margin_percent=preload_margin_percent,
-        low_buffer_seconds=low_buffer_seconds,
-        protected_buffer_seconds=protected_buffer_seconds,
-    )
-    attributes = health.attributes
-    return {
-        "event": "stream_health_sample",
-        "sequence": sequence,
-        "stream_index": index,
-        "stream_count": total,
-        "health": health.state,
-        "health_candidate": torrent.get("stream_health_candidate_state"),
-        "health_reason": health.reason,
-        "health_score": health.score,
-        "health_pending_seconds": torrent.get("stream_health_pending_seconds"),
-        "forecast": torrent.get("stream_forecast_state"),
-        "forecast_reason": torrent.get("stream_forecast_reason"),
-        "interruption_risk": torrent.get("stream_interruption_risk"),
-        "interruption_eta_seconds": torrent.get("stream_interruption_eta_seconds"),
-        "buffer_seconds": attributes.get("buffer_seconds"),
-        "buffer_mode": attributes.get("buffer_mode"),
-        "buffer_source": attributes.get("buffer_source"),
-        "buffer_trend_seconds_per_minute": attributes.get(
-            "buffer_trend_seconds_per_minute"
-        ),
-        "bit_rate_mbps": attributes.get("bit_rate_mbps"),
-        "bit_rate_source": attributes.get("bit_rate_source"),
-        "bit_rate_estimated": attributes.get("bit_rate_estimated"),
-        "download_speed_mbps": attributes.get("download_speed_mbps"),
-        "instant_download_speed_mbps": attributes.get("instant_download_speed_mbps"),
-        "average_download_speed_mbps": attributes.get("average_download_speed_mbps"),
-        "speed_source": attributes.get("speed_source"),
-        "speed_ratio": attributes.get("speed_ratio"),
-        "speed_margin_percent": attributes.get("speed_margin_percent"),
-        "speed_sample_count": torrent.get("speed_sample_count"),
-        "buffer_sample_count": torrent.get("buffer_sample_count"),
-        "cache_fill_percent": attributes.get("cache_fill_percent"),
-        "cache_full": attributes.get("cache_full"),
-        "connected_seeders": attributes.get("connected_seeders"),
-        "active_peers": attributes.get("active_peers"),
-        "session_duration_seconds": torrent.get("stream_session_duration_seconds"),
-        "session_minimum_buffer_seconds": torrent.get(
-            "stream_session_minimum_buffer_seconds"
-        ),
-        "session_average_speed_mbps": torrent.get("stream_session_average_speed_mbps"),
-        "session_insufficient_seconds": torrent.get(
-            "stream_session_insufficient_seconds"
-        ),
-        "session_risk_events": torrent.get("stream_session_risk_events"),
-        "ffprobe_status": torrent.get("ffprobe_status", ffprobe_status),
-        "ffprobe_failures": torrent.get("ffprobe_failure_count", ffprobe_failures),
-        "ffprobe_last_error": torrent.get("ffprobe_last_error", ffprobe_last_error),
-        "ffprobe_retry_seconds": torrent.get(
-            "ffprobe_retry_seconds", ffprobe_retry_seconds
-        ),
-    }
 
 
 class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
@@ -121,6 +44,10 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
         stream_downgrade_delay: float,
         stream_risk_horizon: float,
         stream_risk_confirmation: float,
+        stream_shadow_enabled: bool,
+        stream_shadow_window: float,
+        stream_shadow_margin: float,
+        stream_shadow_risk_horizon: float,
         entry_id: str,
     ) -> None:
         """Initialize the coordinator."""
@@ -139,9 +66,15 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
         self.stream_downgrade_delay = stream_downgrade_delay
         self.stream_risk_horizon = stream_risk_horizon
         self.stream_risk_confirmation = stream_risk_confirmation
+        self.stream_shadow_enabled = stream_shadow_enabled
+        self.stream_shadow_window = stream_shadow_window
+        self.stream_shadow_margin = stream_shadow_margin
+        self.stream_shadow_risk_horizon = stream_shadow_risk_horizon
+        self.scan_interval_seconds = scan_interval
         self._speed_tracker = StreamSpeedTracker()
         self._health_tracker = StreamHealthTracker()
         self._forecast_tracker = StreamForecastTracker()
+        self._reader_v2_tracker = ReaderV2StreamTracker()
         self._repair_issue_id = f"ffprobe_unavailable_{entry_id}"
         self._diagnostic_sequence = 0
         self._had_streams = False
@@ -170,7 +103,7 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
         self._had_streams = True
         self._diagnostic_sequence += 1
         for index, torrent in enumerate(streams, start=1):
-            sample = _stream_diagnostic_sample(
+            sample = stream_diagnostic_sample(
                 torrent,
                 sequence=self._diagnostic_sequence,
                 index=index,
@@ -187,6 +120,47 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
             _LOGGER.debug(
                 "stream_health_sample %s",
                 json.dumps(sample, separators=(",", ":"), sort_keys=True),
+            )
+
+    @staticmethod
+    def _promote_reader_v2_results(data: TorrServerData) -> None:
+        """Make the validated v2 assessment authoritative for existing entities."""
+        for torrent in data.streaming_torrents:
+            health = torrent.get("shadow_health_state")
+            buffer_mode = torrent.get("shadow_buffer_mode")
+            forecast = torrent.get("shadow_forecast_state")
+            if health is None or buffer_mode is None or forecast is None:
+                continue
+
+            torrent["stream_health_model"] = "reader_v2"
+            torrent["stabilized_stream_health_state"] = health
+            torrent["stabilized_stream_health_reason"] = torrent.get(
+                "shadow_reason"
+            )
+            torrent["stream_health_candidate_state"] = torrent.get(
+                "shadow_health_state"
+            )
+            torrent["stream_health_candidate_reason"] = torrent.get(
+                "shadow_candidate_reason"
+            )
+            torrent["stream_health_pending_seconds"] = torrent.get(
+                "shadow_transition_pending_seconds"
+            )
+            torrent["buffer_mode"] = buffer_mode
+            torrent["stream_forecast_state"] = forecast
+            torrent["stream_forecast_reason"] = torrent.get("shadow_reason")
+            torrent["stream_interruption_risk"] = bool(
+                torrent.get("shadow_interruption_risk")
+            )
+            torrent["stream_interruption_eta_seconds"] = torrent.get(
+                "shadow_eta_seconds"
+            )
+            torrent["stream_risk_confirmation_pending_seconds"] = torrent.get(
+                "shadow_risk_transition_pending_seconds"
+            )
+            ratio = torrent.get("shadow_long_speed_ratio")
+            torrent["stream_speed_margin_percent"] = (
+                round((float(ratio) - 1) * 100, 1) if ratio is not None else None
             )
 
     async def _async_update_data(self) -> TorrServerData:
@@ -219,7 +193,20 @@ class TorrServerDataUpdateCoordinator(DataUpdateCoordinator[TorrServerData]):
                 low_buffer_seconds=self.stream_low_buffer_seconds,
                 protected_buffer_seconds=self.stream_protected_buffer_seconds,
             )
+            if self.stream_shadow_enabled:
+                self._reader_v2_tracker.apply(
+                    data.streaming_torrents,
+                    now=now,
+                    window_seconds=self.stream_shadow_window,
+                    sustainable_margin_percent=self.stream_shadow_margin,
+                    low_buffer_seconds=self.stream_low_buffer_seconds,
+                    risk_horizon_seconds=self.stream_shadow_risk_horizon,
+                    confirmation_seconds=self.stream_risk_confirmation,
+                    scan_interval_seconds=self.scan_interval_seconds,
+                )
             self._log_stream_diagnostics(data)
+            if self.stream_shadow_enabled:
+                self._promote_reader_v2_results(data)
             if data.ffprobe_status == "unavailable":
                 ir.async_create_issue(
                     self.hass,

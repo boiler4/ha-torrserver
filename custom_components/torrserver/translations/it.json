@@ -55,7 +55,7 @@
         "description": "Configura aggiornamento e stima della salute streaming. L’analisi sperimentale del bitrate è in sola lettura e non modifica impostazioni o torrent.",
         "data": {
           "scan_interval": "Intervallo di aggiornamento", "stream_average_window": "Finestra media velocità", "download_threshold_mbps": "Soglia download attivo",
-          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer stato Buono", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "stream_risk_horizon": "Orizzonte rischio interruzione", "stream_risk_confirmation": "Tempo conferma rischio", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
+          "stream_low_buffer_seconds": "Soglia buffer basso", "stream_protected_buffer_seconds": "Soglia buffer stato Buono", "stream_stable_margin": "Margine velocità sostenibile", "stream_preload_margin": "Margine velocità precaricamento", "stream_downgrade_delay": "Ritardo peggioramento salute", "stream_risk_horizon": "Orizzonte rischio interruzione", "stream_risk_confirmation": "Tempo conferma rischio", "stream_shadow_enabled": "Abilita valutazione autorevole reader-v2", "stream_shadow_window": "Finestra di osservazione reader-v2", "stream_shadow_margin": "Margine velocità sostenibile reader-v2", "stream_shadow_risk_horizon": "Orizzonte rischio interruzione reader-v2", "experimental_ffprobe": "Sperimentale: analisi bitrate reale del file"
         },
         "data_description": {
           "scan_interval": "Ogni quanti secondi Home Assistant legge TorrServer. Un valore breve aggiorna prima ma genera più richieste locali.",
@@ -68,11 +68,15 @@
           "stream_downgrade_delay": "Tempo durante il quale una condizione peggiore non urgente deve persistere prima di cambiare il semaforo. Consigliato: 15 secondi.",
           "stream_risk_horizon": "Attiva l'indicatore di rischio quando la diminuzione misurata del buffer prevede un'interruzione entro questo tempo. Consigliato: 60 secondi.",
           "stream_risk_confirmation": "Tempo durante il quale il rischio previsto deve persistere prima di attivare il sensore binario. Le emergenze con cinque secondi o meno sono immediate. Consigliato: 15 secondi.",
+          "stream_shadow_enabled": "Abilita il modello reader-v2 che alimenta le entità di salute, previsione e rischio interruzione streaming.",
+          "stream_shadow_window": "Finestra lunga usata da reader-v2 per velocità e andamento del buffer. Deve contenere almeno tre intervalli di aggiornamento. Consigliato: 120 secondi.",
+          "stream_shadow_margin": "Velocità aggiuntiva rispetto al bitrate richiesta da reader-v2 per dichiarare il flusso sostenibile. Consigliato: 15%.",
+          "stream_shadow_risk_horizon": "Reader-v2 indica rischio durante la riproduzione quando l'esaurimento stimato del buffer rientra in questo tempo. Avvio, pausa, seek e precaricamento non attivano il rischio. Consigliato: 300 secondi.",
           "experimental_ffprobe": "Usa l’endpoint /ffp di TorrServer una volta per file riprodotto e conserva il risultato in memoria. L’eseguibile ffprobe deve essere disponibile a TorrServer; altrimenti viene usata una stima."
         }
       }
     },
-    "error": {"preload_margin_too_low": "Il margine di precaricamento deve essere maggiore del margine sostenibile.", "protected_buffer_too_low": "La soglia buffer dello stato Buono deve essere maggiore della soglia buffer basso.", "average_window_too_short": "La finestra media deve essere almeno pari all’intervallo di aggiornamento."}
+    "error": {"preload_margin_too_low": "Il margine di precaricamento deve essere maggiore del margine sostenibile.", "protected_buffer_too_low": "La soglia buffer dello stato Buono deve essere maggiore della soglia buffer basso.", "average_window_too_short": "La finestra media deve essere almeno pari all’intervallo di aggiornamento.", "shadow_window_too_short": "La finestra reader-v2 deve contenere almeno tre intervalli di aggiornamento."}
   },
   "entity": {
     "binary_sensor": {"connected": {"name": "Connesso"}, "downloading": {"name": "Download in corso"}, "working": {"name": "In attività"}, "stream_interruption_risk": {"name": "Rischio interruzione streaming"}},

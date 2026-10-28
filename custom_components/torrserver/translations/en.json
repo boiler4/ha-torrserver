@@ -69,6 +69,10 @@
           "stream_downgrade_delay": "Health downgrade delay",
           "stream_risk_horizon": "Interruption-risk horizon",
           "stream_risk_confirmation": "Risk confirmation time",
+          "stream_shadow_enabled": "Enable authoritative reader-v2 evaluation",
+          "stream_shadow_window": "Reader-v2 observation window",
+          "stream_shadow_margin": "Reader-v2 sustainable-speed margin",
+          "stream_shadow_risk_horizon": "Reader-v2 interruption-risk horizon",
           "experimental_ffprobe": "Experimental: exact media bitrate analysis"
         },
         "data_description": {
@@ -82,6 +86,10 @@
           "stream_downgrade_delay": "How long a worse non-emergency condition must persist before the traffic light changes. Recommended: 15 seconds.",
           "stream_risk_horizon": "Raise the risk indicator when measured buffer depletion predicts an interruption within this time. Recommended: 60 seconds.",
           "stream_risk_confirmation": "How long a predicted risk must persist before the binary sensor turns on. Emergencies at five seconds or less are immediate. Recommended: 15 seconds.",
+          "stream_shadow_enabled": "Enables the reader-v2 model that drives streaming health, forecast and interruption-risk entities.",
+          "stream_shadow_window": "Long window used by reader-v2 for throughput and buffer trends. It must contain at least three update intervals. Recommended: 120 seconds.",
+          "stream_shadow_margin": "Extra throughput above media bitrate required by reader-v2 before calling a stream sustainable. Recommended: 15%.",
+          "stream_shadow_risk_horizon": "Reader-v2 marks an actively playing stream at risk when projected buffer exhaustion falls within this time. Startup, pause, seek and preloading never activate risk. Recommended: 300 seconds.",
           "experimental_ffprobe": "Uses TorrServer's /ffp endpoint once per streamed file and caches the result in memory. The ffprobe executable must be available to TorrServer; otherwise the integration uses an estimate."
         }
       }
@@ -89,7 +97,8 @@
     "error": {
       "preload_margin_too_low": "The preloading margin must be greater than the sustainable margin.",
       "protected_buffer_too_low": "The Good-state buffer threshold must be greater than the low-buffer threshold.",
-      "average_window_too_short": "The average window must be at least as long as the update interval."
+      "average_window_too_short": "The average window must be at least as long as the update interval.",
+      "shadow_window_too_short": "The reader-v2 observation window must contain at least three update intervals."
     }
   },
   "entity": {

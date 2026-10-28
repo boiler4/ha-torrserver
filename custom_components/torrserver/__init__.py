@@ -18,6 +18,10 @@ from .const import (
     CONF_STREAM_PROTECTED_BUFFER_SECONDS,
     CONF_STREAM_RISK_CONFIRMATION,
     CONF_STREAM_RISK_HORIZON,
+    CONF_STREAM_SHADOW_ENABLED,
+    CONF_STREAM_SHADOW_MARGIN,
+    CONF_STREAM_SHADOW_RISK_HORIZON,
+    CONF_STREAM_SHADOW_WINDOW,
     CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -30,6 +34,10 @@ from .const import (
     DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
     DEFAULT_STREAM_RISK_CONFIRMATION,
     DEFAULT_STREAM_RISK_HORIZON,
+    DEFAULT_STREAM_SHADOW_ENABLED,
+    DEFAULT_STREAM_SHADOW_MARGIN,
+    DEFAULT_STREAM_SHADOW_RISK_HORIZON,
+    DEFAULT_STREAM_SHADOW_WINDOW,
     DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_VERIFY_SSL,
 )
@@ -86,14 +94,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: TorrServerConfigEntry) -
                 CONF_STREAM_DOWNGRADE_DELAY, DEFAULT_STREAM_DOWNGRADE_DELAY
             )
         ),
-        float(
-            entry.options.get(
-                CONF_STREAM_RISK_HORIZON, DEFAULT_STREAM_RISK_HORIZON
-            )
-        ),
+        float(entry.options.get(CONF_STREAM_RISK_HORIZON, DEFAULT_STREAM_RISK_HORIZON)),
         float(
             entry.options.get(
                 CONF_STREAM_RISK_CONFIRMATION, DEFAULT_STREAM_RISK_CONFIRMATION
+            )
+        ),
+        bool(
+            entry.options.get(CONF_STREAM_SHADOW_ENABLED, DEFAULT_STREAM_SHADOW_ENABLED)
+        ),
+        float(
+            entry.options.get(CONF_STREAM_SHADOW_WINDOW, DEFAULT_STREAM_SHADOW_WINDOW)
+        ),
+        float(
+            entry.options.get(CONF_STREAM_SHADOW_MARGIN, DEFAULT_STREAM_SHADOW_MARGIN)
+        ),
+        float(
+            entry.options.get(
+                CONF_STREAM_SHADOW_RISK_HORIZON,
+                DEFAULT_STREAM_SHADOW_RISK_HORIZON,
             )
         ),
         entry.entry_id,

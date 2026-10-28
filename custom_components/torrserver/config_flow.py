@@ -41,6 +41,10 @@ from .const import (
     CONF_STREAM_PROTECTED_BUFFER_SECONDS,
     CONF_STREAM_RISK_CONFIRMATION,
     CONF_STREAM_RISK_HORIZON,
+    CONF_STREAM_SHADOW_ENABLED,
+    CONF_STREAM_SHADOW_MARGIN,
+    CONF_STREAM_SHADOW_RISK_HORIZON,
+    CONF_STREAM_SHADOW_WINDOW,
     CONF_STREAM_STABLE_MARGIN,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -54,6 +58,10 @@ from .const import (
     DEFAULT_STREAM_PROTECTED_BUFFER_SECONDS,
     DEFAULT_STREAM_RISK_CONFIRMATION,
     DEFAULT_STREAM_RISK_HORIZON,
+    DEFAULT_STREAM_SHADOW_ENABLED,
+    DEFAULT_STREAM_SHADOW_MARGIN,
+    DEFAULT_STREAM_SHADOW_RISK_HORIZON,
+    DEFAULT_STREAM_SHADOW_WINDOW,
     DEFAULT_STREAM_STABLE_MARGIN,
     DEFAULT_URL,
     DEFAULT_VERIFY_SSL,
@@ -65,6 +73,8 @@ from .const import (
     MAX_STREAM_MARGIN,
     MAX_STREAM_RISK_CONFIRMATION,
     MAX_STREAM_RISK_HORIZON,
+    MAX_STREAM_SHADOW_RISK_HORIZON,
+    MAX_STREAM_SHADOW_WINDOW,
     MIN_SCAN_INTERVAL,
     MIN_STREAM_AVERAGE_WINDOW,
     MIN_STREAM_BUFFER_SECONDS,
@@ -72,6 +82,8 @@ from .const import (
     MIN_STREAM_MARGIN,
     MIN_STREAM_RISK_CONFIRMATION,
     MIN_STREAM_RISK_HORIZON,
+    MIN_STREAM_SHADOW_RISK_HORIZON,
+    MIN_STREAM_SHADOW_WINDOW,
 )
 from .discovery import (
     DiscoveredTorrServer,
@@ -379,11 +391,10 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
             stable_margin = float(user_input[CONF_STREAM_STABLE_MARGIN])
             preload_margin = float(user_input[CONF_STREAM_PRELOAD_MARGIN])
             low_buffer = float(user_input[CONF_STREAM_LOW_BUFFER_SECONDS])
-            protected_buffer = float(
-                user_input[CONF_STREAM_PROTECTED_BUFFER_SECONDS]
-            )
+            protected_buffer = float(user_input[CONF_STREAM_PROTECTED_BUFFER_SECONDS])
             average_window = float(user_input[CONF_STREAM_AVERAGE_WINDOW])
             scan_interval = float(user_input[CONF_SCAN_INTERVAL])
+            shadow_window = float(user_input[CONF_STREAM_SHADOW_WINDOW])
             if preload_margin <= stable_margin:
                 errors[CONF_STREAM_PRELOAD_MARGIN] = "preload_margin_too_low"
             elif protected_buffer <= low_buffer:
@@ -392,6 +403,11 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                 )
             elif average_window < scan_interval:
                 errors[CONF_STREAM_AVERAGE_WINDOW] = "average_window_too_short"
+            elif (
+                user_input[CONF_STREAM_SHADOW_ENABLED]
+                and shadow_window < scan_interval * 3
+            ):
+                errors[CONF_STREAM_SHADOW_WINDOW] = "shadow_window_too_short"
             else:
                 return self.async_create_entry(title="", data=user_input)
 
@@ -547,6 +563,58 @@ class TorrServerOptionsFlow(config_entries.OptionsFlow):
                             min=MIN_STREAM_RISK_CONFIRMATION,
                             max=MAX_STREAM_RISK_CONFIRMATION,
                             step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_SHADOW_ENABLED,
+                        default=defaults.get(
+                            CONF_STREAM_SHADOW_ENABLED,
+                            DEFAULT_STREAM_SHADOW_ENABLED,
+                        ),
+                    ): BooleanSelector(),
+                    vol.Required(
+                        CONF_STREAM_SHADOW_WINDOW,
+                        default=defaults.get(
+                            CONF_STREAM_SHADOW_WINDOW,
+                            DEFAULT_STREAM_SHADOW_WINDOW,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_SHADOW_WINDOW,
+                            max=MAX_STREAM_SHADOW_WINDOW,
+                            step=10,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="s",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_SHADOW_MARGIN,
+                        default=defaults.get(
+                            CONF_STREAM_SHADOW_MARGIN,
+                            DEFAULT_STREAM_SHADOW_MARGIN,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_MARGIN,
+                            max=100,
+                            step=1,
+                            mode=NumberSelectorMode.BOX,
+                            unit_of_measurement="%",
+                        )
+                    ),
+                    vol.Required(
+                        CONF_STREAM_SHADOW_RISK_HORIZON,
+                        default=defaults.get(
+                            CONF_STREAM_SHADOW_RISK_HORIZON,
+                            DEFAULT_STREAM_SHADOW_RISK_HORIZON,
+                        ),
+                    ): NumberSelector(
+                        NumberSelectorConfig(
+                            min=MIN_STREAM_SHADOW_RISK_HORIZON,
+                            max=MAX_STREAM_SHADOW_RISK_HORIZON,
+                            step=30,
                             mode=NumberSelectorMode.BOX,
                             unit_of_measurement="s",
                         )

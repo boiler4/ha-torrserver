@@ -153,6 +153,12 @@ def evaluate_stream_forecast(
     if stored_eta is not None:
         eta_seconds = stored_eta
 
+    if torrent.get("stream_health_model") == "reader_v2":
+        state = str(torrent.get("stream_forecast_state") or "unknown")
+        reason = str(torrent.get("stream_forecast_reason") or "reader_v2")
+        candidate_risk = bool(torrent.get("shadow_candidate_risk"))
+        confirmed_risk = bool(torrent.get("shadow_interruption_risk"))
+
     attributes = {
         "reason": reason,
         "estimated": True,
@@ -181,6 +187,10 @@ def evaluate_stream_forecast(
             "stream_session_insufficient_seconds"
         ),
         "session_risk_events": torrent.get("stream_session_risk_events"),
+        "model": torrent.get("stream_health_model", "legacy"),
+        "phase": torrent.get("shadow_phase"),
+        "condition": torrent.get("shadow_condition"),
+        "eta_source": torrent.get("shadow_eta_source"),
     }
     return StreamForecast(
         state=state,

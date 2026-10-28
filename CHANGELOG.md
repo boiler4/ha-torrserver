@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0-beta.4
+
+This prerelease includes the previously private beta.3 reader-v2 model.
+
+- Use reader-v2 as the authoritative streaming-health and interruption model
+  by default, with existing stored option keys kept compatible.
+- Limit the current-torrent state to 255 characters without duplicating the
+  full title in Recorder attributes.
+- Collect fresh samples during startup and resume before enabling risk.
+- Reset stale risk, ETA and samples on detected seek and confirmed pause;
+  a completed cached remainder stays protected even when downloads stop.
+- Clarify English, Italian and Russian model-option descriptions.
+- Run the unified regression suite against a real Home Assistant runtime
+  instead of a package stub; cover long titles and pause/seek transitions.
+
+The forecast remains a server-side estimate, not proof of player buffering.
+Startup-risk behavior is still being evaluated; use the stable release if
+experimental forecasting is not appropriate for your installation.
+
 ## 0.4.0-beta.2
 
 - Retry transient `/ffp` failures with bounded 15/30/60/120/300-second backoff

@@ -10,7 +10,7 @@ A local, read-only Home Assistant integration for monitoring
 [YouROK/TorrServer](https://github.com/YouROK/TorrServer). It does not add,
 remove, stop, or modify torrents or TorrServer settings.
 
-The current stable release is `0.3.0`. `0.4.0-beta.1` is an optional
+The current stable release is `0.3.0`. `0.4.0-beta.4` is an optional
 pre-release for testing streaming autonomy and interruption forecasting.
 
 ## Highlights
@@ -32,17 +32,17 @@ pre-release for testing streaming autonomy and interruption forecasting.
 
 ## Installation with HACS
 
-Until the repository is included in the default HACS catalog:
+TorrServer is included in the default HACS community catalog.
 
-1. Open HACS in Home Assistant.
-2. Open the menu and select **Custom repositories**.
-3. Add `https://github.com/boiler4/ha-torrserver` as **Integration**.
-4. Install **TorrServer**, restart Home Assistant, and add the integration from
+1. Open HACS and search for **TorrServer**.
+2. Download the integration, restart Home Assistant, then add it from
    **Settings → Devices & services**.
+3. HACS selects the stable release by default. To test this beta, enable
+   prereleases in the version selector and explicitly choose `v0.4.0-beta.4`.
 
-The stable release is selected automatically. Until catalog inclusion is
-approved, the repository remains fully installable through HACS as a custom
-repository.
+If the catalog has not refreshed yet, add `https://github.com/boiler4/ha-torrserver`
+as a custom **Integration** repository. HACS inclusion is not inclusion in
+Home Assistant Core.
 
 ## Configuration and discovery
 
@@ -60,40 +60,28 @@ self-signed certificate, disable certificate verification explicitly.
 
 ## Streaming health logic
 
-Only torrents with a real TorrServer cache reader are treated as streaming.
-Other loaded or seeding torrents do not affect the health indicator. With
-multiple simultaneous streams, the entity reports the worst active state and
-its attributes include a count for every state.
+Beta.4 uses **reader-v2** as the authoritative model by default. It combines
+TorrServer's active reader position, consecutive completed cache pieces, measured
+reader demand, rolling download speed and buffer trend. A torrent merely seeding
+without an active cache reader does not degrade streaming health.
 
-The primary signal is playable data ahead of TorrServer's active reader. It is
-calculated from consecutive `/cache` `Pieces` marked `Completed`, stopping at
-the first missing piece, and converted to seconds using the detected media
-bitrate. The current reader piece is excluded because TorrServer does not expose
-the byte offset inside that piece:
+- A completely cached remaining file stays **Good** (`protected`) even if
+  downloads stop. Cache occupancy alone is not proof of playable data.
+- Startup and resume collect fresh samples before risk is allowed. A detected
+  seek or confirmed pause clears stale risk and ETA; resume starts measuring
+  again rather than reusing old throughput samples.
+- Sustained throughput deficits and projected buffer exhaustion can still raise
+  interruption risk after the initial measuring phase.
+- Existing health entity IDs and raw states remain compatible. Attributes expose
+  `model`, `phase`, `condition`, buffer evidence, confidence and decision reason.
+- The reader-v2 option is authoritative, not a diagnostic-only shadow. Disabling
+  it selects the legacy model; existing stored `stream_shadow_*` option keys are
+  preserved for upgrade compatibility.
 
-- **Good** (raw state `protected`): at least 60 playable seconds or a completely
-  loaded file.
-- **Stable**: at least 15 playable seconds, or a low buffer whose download can
-  sustain and recover playback.
-- **Insufficient**: fewer than 15 playable seconds while speed and buffer trend
-  cannot recover playback.
-- **Measuring**: reader-buffer data is unavailable and speed samples are still
-  being collected.
-
-The buffer mode is exposed separately as `full`, `preloading`, `stable`,
-`draining`, `recovering`, or `unknown`. `full` means that the consecutive
-playable buffer reached the Good threshold; TorrServer cache occupancy is
-diagnostic only and never makes a stream Good by itself.
-
-Defaults are 15 seconds for low buffer, 60 seconds for Good, 0% sustainable
-speed margin, 10% preloading margin, a 15-second average, and a 15-second
-non-emergency downgrade delay. All are configurable. Emergency conditions at
-five seconds or no usable sources are applied immediately.
-
-This is an explainable estimate, not a player guarantee. Attributes expose
-playable seconds, buffer mode and trend, instantaneous/average Mbps, bitrate,
-thresholds, cache occupancy, consecutive completed pieces, samples, peers,
-seeders, reason, pending transition, and bitrate source.
+Reader phases are inferred from server activity: the integration does not read
+the player's actual pause button or buffering screen. The forecast remains an
+explainable estimate, not a playback guarantee. Startup alerts are still under
+field evaluation in this prerelease.
 
 ## Streaming autonomy and interruption forecast (beta)
 
@@ -109,7 +97,8 @@ seconds. The continuity forecast uses its rolling trend as the primary signal:
 
 No ETA is exposed while the buffer is stable or growing. The default risk
 horizon is 60 seconds and confirmation time is 15 seconds; both are configurable.
-At five playable seconds or less the risk is immediate. With simultaneous
+After startup/resume settling, five playable seconds or less can bypass
+the normal confirmation delay. With simultaneous
 streams the worst forecast and minimum ETA are exposed.
 
 The `Streaming interruption risk` binary sensor can trigger a native Home

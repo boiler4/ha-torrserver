@@ -5,7 +5,7 @@ Home Assistant diagnostics from the TorrServer integration, inspect the redacted
 file, and attach it manually. Never post credentials, torrent names, hashes,
 paths, links, or media metadata.
 
-Development checks:
+Development checks (Python 3.14; tests install Home Assistant 2026.10.1):
 
 ```bash
 python -m pip install -r requirements_test.txt
